@@ -1,0 +1,79 @@
+<div class="auth-container">
+  <div class="auth-card">
+    <!-- User Icon -->
+    <div class="user-icon">
+      <svg class="user-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7  00-7 7h14a7 7 0 00-7-7z"></path>
+      </svg>
+    </div>
+
+    <h2>Welcome back</h2>
+    <p class="subtitle">Please sign in to continue</p>
+
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+      <!-- Email Field -->
+      <div class="form-group" [class.error]="loginForm.get('email')?.invalid && loginForm.get('email')?.touched">
+        <svg class="input-icon input-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+        </svg>
+        <input id="email"
+               type="email"
+               formControlName="email"
+               placeholder="Email address"
+               autocomplete="email" />
+        <div class="error-message"
+             *ngIf="loginForm.get('email')?.invalid && loginForm.get('email')?.touched">
+          Email is required
+        </div>
+      </div>
+
+      <!-- Password Field -->
+      <div class="form-group" [class.error]="loginForm.get('password')?.invalid && loginForm.get('password')?.touched">
+        <svg class="input-icon input-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+        </svg>
+        <input id="password"
+               [type]="showPassword ? 'text' : 'password'"
+               formControlName="password"
+               placeholder="Password"
+               autocomplete="current-password" />
+        <svg class="password-toggle password-toggle-svg"
+             (click)="togglePassword()"
+             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+        </svg>
+        <div class="error-message"
+             *ngIf="loginForm.get('password')?.invalid && loginForm.get('password')?.touched">
+          Password is required
+        </div>
+      </div>
+
+      <!-- Form Options -->
+      <div class="form-options">
+        <label class="remember-me">
+          <input type="checkbox" formControlName="rememberMe">
+          <span>Remember me</span>
+        </label>
+        <a routerLink="/forgot-password" class="forgot-password">Forgot password?</a>
+      </div>
+
+      <!-- Submit Button -->
+      <button type="submit" [disabled]="loginForm.invalid || isLoading" [class.loading]="isLoading">
+        {{ isLoading ? '' : 'Sign In' }}
+      </button>
+    </form>
+
+    <!-- Message -->
+    <p class="message" [class.success]="messageType === 'success'" [class.error]="messageType === 'error'" *ngIf="message">
+      {{ message }}
+    </p>
+
+    <p class="switch">Don't have an account? <a routerLink="/register">Sign up</a></p>
+  </div>
+</div>

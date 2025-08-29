@@ -1,0 +1,75 @@
+<div class="reservation-container">
+  <div class="header">
+    <h1><i class="fas fa-calendar-check"></i> Réservation de Salle</h1>
+    <p>Réservez votre salle de réunion en quelques clics</p>
+  </div>
+
+  <div class="content">
+    <!-- Overlay de chargement -->
+    <div class="loading-overlay" *ngIf="isLoading">
+      <div class="loading-spinner"></div>
+      <p>Traitement en cours...</p>
+    </div>
+
+    <!-- Sélection de la salle -->
+    <div class="form-section">
+      <h2><i class="fas fa-building"></i> Sélectionnez une salle</h2>
+      <div class="form-group">
+        <label for="salleSelect">Choisir une salle *</label>
+        <select id="salleSelect" class="form-input" [(ngModel)]="selectedSalle"
+                (change)="onSalleChange()" [disabled]="isLoading" required>
+          <option [ngValue]="null">Sélectionnez une salle</option>
+          <option *ngFor="let salle of salles" [ngValue]="salle.id">
+            {{ salle.nom }} ({{ salle.capacite }} personnes)
+          </option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Sélection du créneau -->
+    <div class="form-section">
+      <h2><i class="fas fa-clock"></i> Choisissez un créneau</h2>
+      <div id="creneauxContainer">
+        <p *ngIf="!creneauxDisponibles.length && !selectedSalle" class="info-text">
+          Veuillez d'abord sélectionner une salle
+        </p>
+        <p *ngIf="!creneauxDisponibles.length && selectedSalle" class="info-text">
+          Chargement des créneaux...
+        </p>
+
+        <div class="creneaux-grid" *ngIf="creneauxDisponibles.length">
+          <div class="creneau-card" *ngFor="let creneau of creneauxDisponibles"
+               [class.selected]="creneau.id === selectedCreneau"
+               (click)="selectCreneau(creneau.id)" [class.disabled]="isLoading">
+            <div class="creneau-time">{{ formatTime(creneau.debut) }} - {{ formatTime(creneau.fin) }}</div>
+            <div class="creneau-salle">{{ creneau.salle.nom }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Messages de confirmation / erreur -->
+    <div class="message success" *ngIf="showConfirmation">
+      <i class="fas fa-check-circle"></i>
+      <p>Votre réservation a été effectuée avec succès !</p>
+      <p *ngIf="currentUser?.email">
+        Un email de confirmation a été envoyé à <strong>{{ currentUser?.email }}</strong>
+      </p>
+
+    </div>
+
+    <div class="message error" *ngIf="showErrorMessage">
+      <i class="fas fa-exclamation-circle"></i>
+      <p>{{ errorText }}</p>
+    </div>
+
+    <!-- Bouton de réservation -->
+    <div class="action-buttons">
+      <button class="submit-btn" [disabled]="!canReserve() || isLoading" (click)="reserver()">
+        <i class="fas" [class.fa-spinner]="isLoading" [class.fa-pulse]="isLoading"
+           [class.fa-calendar-plus]="!isLoading"></i>
+        {{ isLoading ? 'Traitement...' : (canReserve() ? 'Réserver maintenant' : 'Complétez le formulaire') }}
+      </button>
+    </div>
+  </div>
+</div>
