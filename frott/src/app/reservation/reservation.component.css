@@ -1,0 +1,351 @@
+.reservation-container {
+  max-width: 800px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.header {
+  background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%);
+  color: white;
+  padding: 25px;
+  text-align: center;
+}
+
+.header h1 {
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+
+.header p {
+  opacity: 0.9;
+  font-size: 16px;
+}
+
+.content {
+  padding: 25px;
+  position: relative;
+}
+
+.form-section {
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #eaeaea;
+}
+
+.form-section h2 {
+  color: #4b6cb7;
+  margin-bottom: 20px;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #444;
+}
+
+.form-input {
+  width: 100%;
+  padding: 12px 15px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 16px;
+  transition: border-color 0.3s;
+}
+
+.form-input:focus {
+  border-color: #4b6cb7;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(75, 108, 183, 0.2);
+}
+
+/* Style spécifique pour le champ nombre de personnes */
+#nombrePersonnes {
+  width: 100%;
+  padding: 12px 15px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 16px;
+  transition: border-color 0.3s;
+}
+
+#nombrePersonnes:focus {
+  border-color: #4b6cb7;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(75, 108, 183, 0.2);
+}
+
+/* Style pour le message de capacité */
+.capacity-info {
+  display: block;
+  margin-top: 8px;
+  color: #666;
+  font-size: 14px;
+  font-style: italic;
+}
+
+.capacity-warning {
+  color: #dc3545;
+  font-weight: 500;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 600px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.selection-summary {
+  margin: 25px 0;
+  animation: fadeIn 0.5s ease;
+}
+
+.selection-summary h3 {
+  color: #28a745;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.summary-card {
+  background: #f8f9fa;
+  border-left: 4px solid #4b6cb7;
+  padding: 20px;
+  border-radius: 6px;
+}
+
+.summary-card p {
+  margin-bottom: 10px;
+}
+
+.personnalise-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  margin-top: 10px;
+}
+
+.message {
+  padding: 15px;
+  border-radius: 8px;
+  margin: 20px 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+}
+
+.message.error {
+  background: #ffeaea;
+  color: #dc3545;
+  border-left: 4px solid #dc3545;
+}
+
+.message.success {
+  background: #eaffea;
+  color: #28a745;
+  border-left: 4px solid #28a745;
+}
+
+.message-content h3 {
+  margin-bottom: 5px;
+}
+
+.action-buttons {
+  margin-top: 30px;
+  text-align: center;
+}
+
+.submit-btn {
+  background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%);
+  color: white;
+  border: none;
+  padding: 14px 30px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(75, 108, 183, 0.4);
+}
+
+.submit-btn:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.new-reservation-btn {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  margin-top: 15px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.3s;
+}
+
+.new-reservation-btn:hover {
+  background: #218838;
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+  border-radius: 12px;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid #4b6cb7;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 15px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Styles pour les icônes */
+.fas {
+  font-size: 18px;
+}
+
+/* Animation pour les messages d'erreur */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.message.error {
+  animation: shake 0.5s ease;
+}
+
+/* Style pour les champs invalides */
+.form-input.ng-invalid.ng-touched,
+#nombrePersonnes.ng-invalid.ng-touched {
+  border-color: #dc3545;
+}
+
+/* Style pour les champs valides */
+.form-input.ng-valid.ng-touched,
+#nombrePersonnes.ng-valid.ng-touched {
+  border-color: #28a745;
+}/* Styles for the new price elements */
+.salle-info {
+  margin: 20px 0;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+}
+
+.salle-details-card {
+  background: white;
+  padding: 15px;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.salle-details-card p {
+  margin: 8px 0;
+}
+
+.confirmation-details {
+  background-color: #f0f8ff;
+  padding: 15px;
+  border-radius: 6px;
+  margin: 15px 0;
+  border-left: 4px solid #28a745;
+}
+
+.confirmation-details p {
+  margin: 8px 0;
+}
+
+/* Update the summary card */
+.summary-card {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  margin-top: 15px;
+}
+
+.summary-card p {
+  margin: 10px 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.summary-card p:last-child {
+  border-bottom: none;
+}
+
+/* Make price stand out */
+.summary-card p strong:nth-child(2),
+.confirmation-details p strong:nth-child(2) {
+  color: #28a745;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .salle-info, .confirmation-details {
+    padding: 10px;
+  }
+
+  .salle-details-card, .summary-card {
+    padding: 15px;
+  }
+}

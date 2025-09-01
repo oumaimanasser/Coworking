@@ -32,28 +32,32 @@ public class SalleController {
         this.imageStorageService.init();
     }
 
+    // GET - Récupérer toutes les salles
     @GetMapping
-    public List<Salle> getAll() {
+    public List<Salle> getAllSalles() {
         return salleRepository.findAll();
     }
 
+    // GET - Récupérer une salle par ID
     @GetMapping("/{id}")
-    public ResponseEntity<Salle> getById(@PathVariable Long id) {
+    public ResponseEntity<Salle> getSalleById(@PathVariable Long id) {
         return salleRepository.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // Endpoint pour créer une salle avec image
+    // POST - Créer une nouvelle salle avec image
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public Salle addWithImage(
+    public Salle createSalle(
             @RequestParam("nom") String nom,
+            @RequestParam("prix") double prix,
             @RequestParam("capacite") int capacite,
             @RequestParam(value = "status", defaultValue = "DISPONIBLE") StatutSalle status,
             @RequestParam(value = "image", required = false) MultipartFile image) {
 
         Salle salle = new Salle();
         salle.setNom(nom);
+        salle.setPrix(prix);
         salle.setCapacite(capacite);
         salle.setStatus(status);
 
@@ -65,14 +69,42 @@ public class SalleController {
         return salleRepository.save(salle);
     }
 
-    // Endpoint pour créer une salle sans image (compatibilité)
-    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    public Salle add(@RequestBody Salle salle) {
-        return salleRepository.save(salle);
+    // PUT - Mettre à jour une salle existante
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Salle> updateSalle(
+            @PathVariable Long id,
+            @RequestParam("nom") String nom,
+            @RequestParam("prix") double prix,
+            @RequestParam("capacite") int capacite,
+            @RequestParam("status") StatutSalle status,
+            @RequestParam(value = "image", required = false) MultipartFile image) {
+
+        return salleRepository.findById(id)
+                .map(existingSalle -> {
+                    // Mettre à jour les champs de base
+                    existingSalle.setNom(nom);
+                    existingSalle.setPrix(prix);
+                    existingSalle.setCapacite(capacite);
+                    existingSalle.setStatus(status);
+
+                    // Gérer l'image si fournie
+                    if (image != null && !image.isEmpty()) {
+                        // Supprimer l'ancienne image si elle existe
+                        if (existingSalle.getImagePath() != null) {
+                            imageStorageService.delete(existingSalle.getImagePath());
+                        }
+                        String imagePath = imageStorageService.store(image);
+                        existingSalle.setImagePath(imagePath);
+                    }
+
+                    return ResponseEntity.ok(salleRepository.save(existingSalle));
+                })
+                .orElse(ResponseEntity.notFound().build());
     }
 
+    // DELETE - Supprimer une salle
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> delete(@PathVariable Long id) {
+    public ResponseEntity<?> deleteSalle(@PathVariable Long id) {
         return salleRepository.findById(id)
                 .map(salle -> {
                     // Supprimer l'image associée si elle existe
@@ -85,52 +117,9 @@ public class SalleController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // Endpoint pour mettre à jour une salle avec image
-    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Salle> updateWithImage(
-            @PathVariable Long id,
-            @RequestParam("nom") String nom,
-            @RequestParam("capacite") int capacite,
-            @RequestParam("status") StatutSalle status,
-            @RequestParam(value = "image", required = false) MultipartFile image) {
-
-        return salleRepository.findById(id)
-                .map(existingSalle -> {
-                    // Supprimer l'ancienne image si elle existe et qu'une nouvelle image est fournie
-                    if (image != null && !image.isEmpty()) {
-                        if (existingSalle.getImagePath() != null) {
-                            imageStorageService.delete(existingSalle.getImagePath());
-                        }
-                        String imagePath = imageStorageService.store(image);
-                        existingSalle.setImagePath(imagePath);
-                    }
-
-                    existingSalle.setNom(nom);
-                    existingSalle.setCapacite(capacite);
-                    existingSalle.setStatus(status);
-
-                    return ResponseEntity.ok(salleRepository.save(existingSalle));
-                })
-                .orElse(ResponseEntity.notFound().build());
-    }
-
-    // Endpoint pour mettre à jour une salle sans image (compatibilité)
-    @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Salle> update(@PathVariable Long id, @RequestBody Salle salleDetails) {
-        return salleRepository.findById(id)
-                .map(existingSalle -> {
-                    existingSalle.setNom(salleDetails.getNom());
-                    existingSalle.setCapacite(salleDetails.getCapacite());
-                    existingSalle.setStatus(salleDetails.getStatus());
-                    // Note: l'image n'est pas modifiée dans cette méthode
-                    return ResponseEntity.ok(salleRepository.save(existingSalle));
-                })
-                .orElse(ResponseEntity.notFound().build());
-    }
-
-    // Endpoint pour servir les images
+    // GET - Servir les images des salles
     @GetMapping("/images/{filename:.+}")
-    public ResponseEntity<Resource> serveFile(@PathVariable String filename) {
+    public ResponseEntity<Resource> serveImage(@PathVariable String filename) {
         try {
             Path file = rootLocation.resolve(filename);
             Resource resource = new UrlResource(file.toUri());

@@ -53,8 +53,6 @@ public class SecurityConfig {
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
-
-    // Security filter chain
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -66,20 +64,31 @@ public class SecurityConfig {
 
                         // Salles routes
                         .requestMatchers(HttpMethod.GET, "/salles/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/salles/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/salles/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/salles/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/salles/**").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/salles/**").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/salles/**").hasAuthority("ADMIN")
+
+                        // Images des salles accessibles à tous
+                        .requestMatchers(HttpMethod.GET, "/salles/images/**").permitAll()
 
                         // Creneaux routes
                         .requestMatchers(HttpMethod.GET, "/creneaux/disponibles").permitAll()
                         .requestMatchers(HttpMethod.GET, "/creneaux/**").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/creneaux/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/creneaux/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/creneaux/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/creneaux/**").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/creneaux/**").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/creneaux/**").hasAuthority("ADMIN")
 
                         // Reservations
-                        .requestMatchers(HttpMethod.GET, "/reservations/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/reservations/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/reservations").authenticated() // USER peut créer
+                        .requestMatchers(HttpMethod.GET, "/reservations/my-reservations").authenticated() // USER peut consulter ses résas
+                        .requestMatchers(HttpMethod.GET, "/reservations/**").hasAuthority("ADMIN") // ADMIN peut consulter toutes les résas
+                        .requestMatchers(HttpMethod.PUT, "/reservations/**").hasAuthority("ADMIN") // ADMIN peut modifier
+                        .requestMatchers(HttpMethod.DELETE, "/reservations/**").hasAuthority("ADMIN") // ADMIN peut supprimer
+
+                        // Paiements (admin only)
+                        .requestMatchers(HttpMethod.POST, "/paiements/confirmer/**").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/paiements/en-attente").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/paiements/payees").hasAuthority("ADMIN")
 
                         // Toutes les autres requêtes
                         .anyRequest().authenticated()

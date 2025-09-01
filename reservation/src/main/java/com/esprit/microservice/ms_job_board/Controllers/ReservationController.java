@@ -118,61 +118,65 @@ public class ReservationController {
         String heureFin = reservation.getCreneau().getFin().format(timeFormatter);
 
         String content = String.format("""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="UTF-8">
-                <style>
-                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                    .header { background-color: #667eea; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
-                    .content { background-color: #f8f9fa; padding: 30px; border-radius: 0 0 5px 5px; }
-                    .detail-box { background-color: white; padding: 20px; margin: 20px 0; border-left: 4px solid #667eea; border-radius: 5px; }
-                    .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
-                    h1 { margin: 0; }
-                    .success-icon { font-size: 24px; margin-right: 10px; }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <h1><span class="success-icon">✅</span>Réservation Confirmée</h1>
-                    </div>
-                    <div class="content">
-                        <p>Bonjour <strong>%s</strong>,</p>
-                        
-                        <p>Votre réservation a été <strong>confirmée avec succès</strong> !</p>
-                        
-                        <div class="detail-box">
-                            <h3>📋 Détails de votre réservation :</h3>
-                            <ul>
-                                <li><strong>🏢 Salle :</strong> %s (Capacité: %d personnes)</li>
-                                <li><strong>📅 Date :</strong> %s</li>
-                                <li><strong>⏰ Horaire :</strong> %s - %s</li>
-                                <li><strong>📧 Email de contact :</strong> %s</li>
-                                <li><strong>🆔 Numéro de réservation :</strong> #%d</li>
-                            </ul>
-                        </div>
-                        
-                        <p><strong>Important :</strong> Merci de vous présenter à l'heure prévue. En cas d'empêchement, n'hésitez pas à nous contacter.</p>
-                        
-                        <p>Nous vous souhaitons une excellente réunion !</p>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background-color: #667eea; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+                .content { background-color: #f8f9fa; padding: 30px; border-radius: 0 0 5px 5px; }
+                .detail-box { background-color: white; padding: 20px; margin: 20px 0; border-left: 4px solid #667eea; border-radius: 5px; }
+                .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
+                h1 { margin: 0; }
+                .success-icon { font-size: 24px; margin-right: 10px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1><span class="success-icon">✅</span>Réservation Confirmée</h1>
+                </div>
+                <div class="content">
+                    <p>Bonjour <strong>%s</strong>,</p>
+                    
+                    <p>Votre réservation a été <strong>confirmée avec succès</strong> !</p>
+                    
+                    <div class="detail-box">
+                        <h3>📋 Détails de votre réservation :</h3>
+                        <ul>
+                            <li><strong>🏢 Salle :</strong> %s (Capacité: %d personnes)</li>
+                            <li><strong>💰 Prix :</strong> %.2f €</li>
+                            <li><strong>📅 Date :</strong> %s</li>
+                            <li><strong>⏰ Horaire :</strong> %s - %s</li>
+                            <li><strong>👥 Nombre de personnes :</strong> %d</li>
+                            <li><strong>📧 Email de contact :</strong> %s</li>
+                            <li><strong>🆔 Numéro de réservation :</strong> #%d</li>
+                        </ul>
                     </div>
                     
-                    <div class="footer">
-                        <p>Cet email a été envoyé automatiquement, merci de ne pas y répondre.</p>
-                        <p>© 2024 Système de Réservation de Salles</p>
-                    </div>
+                    <p><strong>Important :</strong> Merci de vous présenter à l'heure prévue. En cas d'empêchement, n'hésitez pas à nous contacter.</p>
+                    
+                    <p>Nous vous souhaitons une excellente réunion !</p>
                 </div>
-            </body>
-            </html>
-            """,
+                
+                <div class="footer">
+                    <p>Cet email a été envoyé automatiquement, merci de ne pas y répondre.</p>
+                    <p>© 2024 Système de Réservation de Salles</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """,
                 user.getUsername(),
                 reservation.getSalle().getNom(),
                 reservation.getSalle().getCapacite(),
+                reservation.getSalle().getPrix(), // Ajout du prix
                 dateStr,
                 heureDebut,
                 heureFin,
+                reservation.getNombrePersonnes(), // Ajout du nombre de personnes
                 user.getEmail(),
                 reservation.getId()
         );
@@ -303,4 +307,42 @@ public class ReservationController {
                     .body(Map.of("message", "Erreur lors de la récupération: " + e.getMessage()));
         }
     }
+    @GetMapping("/paiements/en-attente")
+    public ResponseEntity<?> getReservationsAvecPaiementEnAttente() {
+        try {
+            // Vérifier l'authentification
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Authentification requise"));
+            }
+
+            List<Reservation> reservations = reservationService.getReservationsAvecPaiementEnAttente();
+            return ResponseEntity.ok(reservations);
+        } catch (Exception e) {
+            System.err.println("❌ Error getting reservations with pending payment: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Erreur lors de la récupération des réservations avec paiement en attente"));
+        }
+    }
+
+    @GetMapping("/paiements/payees")
+    public ResponseEntity<?> getReservationsPayees() {
+        try {
+            // Vérifier l'authentification
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Authentification requise"));
+            }
+
+            List<Reservation> reservations = reservationService.getReservationsPayees();
+            return ResponseEntity.ok(reservations);
+        } catch (Exception e) {
+            System.err.println("❌ Error getting paid reservations: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Erreur lors de la récupération des réservations payées"));
+        }
+    }
+
 }

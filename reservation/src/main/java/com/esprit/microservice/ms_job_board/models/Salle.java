@@ -17,7 +17,7 @@ public class Salle {
     private Long id;
 
     private String nom;
-
+    private double prix;
     private int capacite;
 
     @Enumerated(EnumType.STRING)

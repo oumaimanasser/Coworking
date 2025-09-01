@@ -1,9 +1,6 @@
 package com.esprit.microservice.ms_job_board.Repositories;
 
-import com.esprit.microservice.ms_job_board.models.Reservation;
-import com.esprit.microservice.ms_job_board.models.ReservationStatus;
-import com.esprit.microservice.ms_job_board.models.Salle;
-import com.esprit.microservice.ms_job_board.models.Creneau;
+import com.esprit.microservice.ms_job_board.models.*;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -29,4 +26,6 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     List<Reservation> findByStatus(ReservationStatus reservationStatus);
 
     List<Reservation> findByCreneauDebutBetween(LocalDateTime startDateTime, LocalDateTime endDateTime);
+    // Nouvelles méthodes pour le statut de paiement
+    List<Reservation> findByPaiementStatus(PaiementStatus paiementStatus);
 }

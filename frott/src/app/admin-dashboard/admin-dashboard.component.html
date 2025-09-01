@@ -1,0 +1,160 @@
+<div class="dashboard-container">
+  <!-- ===== HEADER ===== -->
+  <div class="header">
+    <h1><i class="fas fa-tachometer-alt"></i> Admin Dashboard</h1>
+    <p>Gestion complète de votre système de réservation</p>
+  </div>
+
+  <!-- ===== NAVIGATION ===== -->
+  <div class="nav-container" *ngIf="currentPage !== 'login'">
+    <div class="nav-buttons">
+      <button class="nav-btn" [class.active]="currentPage === 'dashboard'" (click)="showPage('dashboard')">
+        <i class="fas fa-chart-pie"></i> Dashboard
+      </button>
+      <button class="nav-btn" [class.active]="currentPage === 'reservations'" (click)="showPage('reservations')">
+        <i class="fas fa-calendar-check"></i> Réservations
+      </button>
+      <button class="nav-btn" [class.active]="currentPage === 'creneaux'" (click)="showPage('creneaux')">
+        <i class="fas fa-clock"></i> Créneaux
+      </button>
+      <button class="nav-btn" [class.active]="currentPage === 'salles'" (click)="showPage('salles')">
+        <i class="fas fa-building"></i> Salles
+      </button>
+      <button class="nav-btn" [class.active]="currentPage === 'paiements'" (click)="showPage('paiements')">
+        <i class="fas fa-credit-card"></i> Paiements
+      </button>
+      <button class="nav-btn" (click)="logout()">
+        <i class="fas fa-sign-out-alt"></i> Déconnexion
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== LOGIN PAGE ===== -->
+  <div *ngIf="currentPage === 'login'" class="page-content">
+    <h2><i class="fas fa-user-lock"></i> Connexion Admin</h2>
+    <form [formGroup]="loginForm" (ngSubmit)="login()" class="form-container">
+      <input type="email" formControlName="email" placeholder="Email" />
+      <input type="password" formControlName="password" placeholder="Mot de passe" />
+      <button type="submit" [disabled]="!loginForm.valid">Se connecter</button>
+    </form>
+  </div>
+
+  <!-- ===== DASHBOARD PAGE ===== -->
+  <div *ngIf="currentPage === 'dashboard'" class="page-content">
+    <div class="stats-container">
+      <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
+        <div class="stat-info">
+          <h3>{{ getTotalReservations() }}</h3>
+          <p>Total Réservations</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-clock"></i></div>
+        <div class="stat-info">
+          <h3>{{ getTotalCreneaux() }}</h3>
+          <p>Total Créneaux</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-building"></i></div>
+        <div class="stat-info">
+          <h3>{{ getTotalSalles() }}</h3>
+          <p>Total Salles</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PAIEMENTS PAGE ===== -->
+  <div *ngIf="currentPage === 'paiements'" class="page-content">
+    <div class="section-header">
+      <h2><i class="fas fa-credit-card"></i> Gestion des Paiements</h2>
+    </div>
+
+    <!-- Paiements en attente -->
+    <div class="payment-section">
+      <h3><i class="fas fa-clock"></i> Paiements en attente</h3>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+          <tr>
+            <th>Client</th>
+            <th>Salle</th>
+            <th>Créneau</th>
+            <th>Personnes</th>
+            <th>Date Réservation</th>
+            <th>Statut Paiement</th>
+            <th>Actions</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr *ngFor="let r of reservationsAvecPaiementEnAttente">
+            <td>{{ r.clientName }}</td>
+            <td>{{ r.salle?.nom || 'Indisponible' }}</td>
+            <td>{{ formatDate(r.creneau?.debut) }} - {{ formatDate(r.creneau?.fin) }}</td>
+            <td>{{ r.nombrePersonnes || 1 }}</td>
+            <td>{{ formatDate(r.dateReservation) }}</td>
+            <td>
+                <span class="status-badge" [ngClass]="getPaiementStatusClass(r.paiementStatus)">
+                  {{ getPaiementStatusText(r.paiementStatus) }}
+                </span>
+            </td>
+            <td>
+              <div class="action-buttons">
+                <button class="action-btn confirm-btn" (click)="confirmerPaiement(r.id)">
+                  <i class="fas fa-check"></i> Confirmer
+                </button>
+                <button class="action-btn delete-btn" (click)="annulerPaiement(r.id)">
+                  <i class="fas fa-times"></i> Annuler
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="reservationsAvecPaiementEnAttente.length === 0">
+            <td colspan="7" class="no-data">Aucun paiement en attente</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Paiements confirmés -->
+    <div class="payment-section">
+      <h3><i class="fas fa-check-circle"></i> Paiements confirmés</h3>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+          <tr>
+            <th>Client</th>
+            <th>Salle</th>
+            <th>Créneau</th>
+            <th>Personnes</th>
+            <th>Date Réservation</th>
+            <th>Statut Paiement</th>
+            <th>Date Paiement</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr *ngFor="let r of reservationsPayees">
+            <td>{{ r.clientName }}</td>
+            <td>{{ r.salle?.nom || 'Indisponible' }}</td>
+            <td>{{ formatDate(r.creneau?.debut) }} - {{ formatDate(r.creneau?.fin) }}</td>
+            <td>{{ r.nombrePersonnes || 1 }}</td>
+            <td>{{ formatDate(r.dateReservation) }}</td>
+            <td>
+                <span class="status-badge" [ngClass]="getPaiementStatusClass(r.paiementStatus)">
+                  {{ getPaiementStatusText(r.paiementStatus) }}
+                </span>
+            </td>
+            <td>{{ formatDate(r.datePaiement) }}</td>
+          </tr>
+          <tr *ngIf="reservationsPayees.length === 0">
+            <td colspan="7" class="no-data">Aucun paiement confirmé</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

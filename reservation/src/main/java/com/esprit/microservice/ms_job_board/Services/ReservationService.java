@@ -29,6 +29,7 @@ public class ReservationService {
     }
 
     // Méthode principale pour créer une réservation avec l'objet Reservation
+    // Méthode principale pour créer une réservation avec l'objet Reservation
     public Reservation createReservation(Reservation reservation) {
         // Valider que la salle et le créneau existent
         Salle salle = salleRepository.findById(reservation.getSalle().getId())
@@ -46,6 +47,11 @@ public class ReservationService {
         boolean creneauDejaReserve = reservationRepository.existsBySalleAndCreneau(salle, creneau);
         if (creneauDejaReserve) {
             throw new RuntimeException("Ce créneau est déjà réservé pour cette salle");
+        }
+
+        // ✅ Vérifier que le nombre de personnes ne dépasse pas la capacité
+        if (reservation.getNombrePersonnes() > salle.getCapacite()) {
+            throw new RuntimeException("Nombre de personnes dépasse la capacité de la salle !");
         }
 
         // Définir les relations
@@ -95,5 +101,14 @@ public class ReservationService {
     // Récupérer les réservations d'un utilisateur
     public List<Reservation> getReservationsByUser(String username) {
         return reservationRepository.findByClientName(username);
+    }
+    // Récupérer les réservations avec paiement en attente
+    public List<Reservation> getReservationsAvecPaiementEnAttente() {
+        return reservationRepository.findByPaiementStatus(PaiementStatus.EN_ATTENTE);
+    }
+
+    // Récupérer les réservations payées
+    public List<Reservation> getReservationsPayees() {
+        return reservationRepository.findByPaiementStatus(PaiementStatus.PAYE);
     }
 }
