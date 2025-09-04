@@ -113,4 +113,23 @@ public class PaiementService {
 
         emailService.sendHtmlEmail(reservation.getClientEmail(), subject, content);
     }
+    public Reservation annulerPaiement(Long reservationId) {
+        // Find the reservation by ID
+        Reservation reservation = reservationRepository.findById(reservationId)
+                .orElseThrow(() -> new RuntimeException("Réservation avec l'ID " + reservationId + " non trouvée"));
+
+        // Check if payment is already cancelled
+        if (reservation.getPaiementStatus() == PaiementStatus.ANNULE) {
+            throw new RuntimeException("Le paiement de cette réservation est déjà annulé");
+        }
+
+        // Update paiementStatus to ANNULE
+        reservation.setPaiementStatus(PaiementStatus.ANNULE);
+
+        // Optionally, update reservation status to CANCELLED
+        reservation.setStatus(ReservationStatus.CANCELLED);
+
+        // Save and return the updated reservation
+        return reservationRepository.save(reservation);
+    }
 }

@@ -1,4 +1,3 @@
-// admin-dashboard.component.ts
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule, DatePipe } from '@angular/common';
@@ -11,15 +10,16 @@ export interface Salle {
   nom: string;
   capacite: number;
   prix: number;
-  status: 'DISPONIBLE' | 'INDISPONIBLE' | 'MAINTENANCE';
+  status?: 'DISPONIBLE' | 'INDISPONIBLE' | 'MAINTENANCE';
   imagePath?: string;
 }
 
 export interface Creneau {
   id?: number;
-  debut: string; // Format ISO
-  fin: string;   // Format ISO
+  debut: string; // ISO format (e.g., 2025-09-03T09:00:00)
+  fin: string;   // ISO format
   salle: Salle;
+  personnalise?: string;
 }
 
 export interface Reservation {
@@ -29,10 +29,9 @@ export interface Reservation {
   clientEmail: string;
   salle: Salle;
   creneau: Creneau;
-  dateReservation: string; // Format ISO
-  status: string;
-  paiementStatus: 'PAYE' | 'EN_ATTENTE' | 'ANNULE';
-  datePaiement?: string;
+  dateReservation: string; // ISO format
+  status: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
+  paiementStatus: 'EN_ATTENTE' | 'PAYEE' | 'ANNULE';
 }
 
 @Component({
@@ -43,33 +42,21 @@ export interface Reservation {
   styleUrls: ['./admin-dashboard.component.css']
 })
 export class AdminDashboardComponent implements OnInit {
-
-  // Pages (inclut la page "paiements")
   currentPage: 'login' | 'dashboard' | 'reservations' | 'creneaux' | 'salles' | 'paiements' = 'login';
-
-  // Forms
   loginForm: FormGroup;
   newCreneauForm: FormGroup;
   editCreneauForm: FormGroup;
   newSalleForm: FormGroup;
   editSalleForm: FormGroup;
-
-  // Données
   creneaux: Creneau[] = [];
   reservations: Reservation[] = [];
   salles: Salle[] = [];
-
-  // Paiements
   reservationsAvecPaiementEnAttente: Reservation[] = [];
   reservationsPayees: Reservation[] = [];
-
-  // Edition / upload
   editingCreneau: Creneau | null = null;
   editingSalle: Salle | null = null;
   selectedFile: File | null = null;
-
-  // API
-  private apiUrl = 'http://localhost:9090';
+  private apiUrl = 'http://localhost:9090'; // Updated to correct port
 
   constructor(
     private fb: FormBuilder,
@@ -78,7 +65,6 @@ export class AdminDashboardComponent implements OnInit {
     private router: Router,
     private datePipe: DatePipe
   ) {
-    // ====== INIT FORMS ======
     this.loginForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
       password: ['', Validators.required]
@@ -112,9 +98,7 @@ export class AdminDashboardComponent implements OnInit {
     });
   }
 
-  // ====== LIFECYCLE ======
   ngOnInit(): void {
-    // Vérifier auth + rôle Admin
     if (!this.authService.isAuthenticated()) {
       this.router.navigate(['/login']);
       return;
@@ -131,9 +115,11 @@ export class AdminDashboardComponent implements OnInit {
     this.loadAllData();
   }
 
-  // ====== AUTH ======
   login(): void {
-    if (!this.loginForm.valid) return;
+    if (!this.loginForm.valid) {
+      alert('Veuillez remplir tous les champs correctement.');
+      return;
+    }
     const { email, password } = this.loginForm.value;
     this.authService.login({ email, password }).subscribe({
       next: (res: any) => {
@@ -141,41 +127,39 @@ export class AdminDashboardComponent implements OnInit {
         this.currentPage = 'dashboard';
         this.loadAllData();
       },
-      error: () => alert('Email ou mot de passe incorrect.')
+      error: (err) => {
+        console.error('Erreur login:', err);
+        alert('Email ou mot de passe incorrect.');
+      }
     });
   }
 
   logout(): void {
     this.authService.logout();
     this.currentPage = 'login';
+    this.router.navigate(['/login']);
   }
 
   showPage(page: 'dashboard' | 'reservations' | 'creneaux' | 'salles' | 'paiements'): void {
     this.currentPage = page;
     this.cancelEdit();
-
-    // Charger les données de la page Paiements
     if (page === 'paiements') {
       this.loadReservationsAvecPaiementEnAttente();
       this.loadReservationsPayees();
     }
   }
 
-  // ====== HELPERS HTTP ======
   private getAuthHeaders(): HttpHeaders | null {
     const token = localStorage.getItem('token');
     if (!token) {
-      alert('Vous devez être connecté pour accéder à cette fonctionnalité.');
+      alert('Session expirée. Veuillez vous reconnecter.');
       this.logout();
       return null;
     }
-    return new HttpHeaders({ 'Authorization': `Bearer ${token}` });
+    return new HttpHeaders({ Authorization: `Bearer ${token}` });
   }
 
-  // ====== LOAD DATA ======
   loadAllData(): void {
-    this.loadReservations();
-    this.loadCreneaux();
     this.loadSalles();
   }
 
@@ -187,16 +171,15 @@ export class AdminDashboardComponent implements OnInit {
       next: (data: Salle[]) => {
         this.salles = data;
         console.log('Salles chargées:', data);
-
-        // Maintenant charger les créneaux et réservations
         this.loadCreneaux();
         this.loadReservations();
       },
-      error: err => {
+      error: (err) => {
         console.error('Erreur chargement salles:', err);
-        if (err.status === 403 || err.status === 401) {
-          alert('Accès refusé, veuillez vous reconnecter.');
-          this.logout();
+        if (err.status === 401 || err.status === 403) {
+          this.handleAuthError();
+        } else {
+          alert('Erreur lors du chargement des salles.');
         }
       }
     });
@@ -208,43 +191,45 @@ export class AdminDashboardComponent implements OnInit {
 
     this.http.get<Creneau[]>(`${this.apiUrl}/creneaux`, { headers }).subscribe({
       next: (creneaux: Creneau[]) => {
-        // Charger les informations complètes des salles pour chaque créneau
         this.creneaux = creneaux.map(creneau => {
-          if (creneau.salle && creneau.salle.id) {
-            const salleComplete = this.salles.find(s => s.id === creneau.salle.id);
-            if (salleComplete) {
-              creneau.salle = salleComplete;
-            }
-          }
+          const salleComplete = this.salles.find(s => s.id === creneau.salle.id);
+          if (salleComplete) creneau.salle = salleComplete;
+          creneau.personnalise = creneau.personnalise || ''; // Ensure personnalise is set
           return creneau;
         });
+        console.log('Creneaux chargés:', this.creneaux);
       },
-      error: err => {
-        if (err.status === 403) {
-          alert('Accès refusé : vous n\'avez pas la permission d\'accéder aux créneaux.');
+      error: (err) => {
+        console.error('Erreur chargement créneaux:', err);
+        if (err.status === 401 || err.status === 403) {
+          this.handleAuthError();
         } else {
-          console.error('Erreur chargement créneaux:', err);
+          alert('Erreur lors du chargement des créneaux.');
         }
       }
     });
   }
+
   private loadReservations(): void {
     const headers = this.getAuthHeaders();
     if (!headers) return;
 
     this.http.get<Reservation[]>(`${this.apiUrl}/reservations`, { headers }).subscribe({
-      next: res => this.reservations = res,
-      error: err => {
-        if (err.status === 403) {
-          alert('Accès refusé : vous n\'avez pas la permission d\'accéder aux réservations.');
+      next: (res) => {
+        this.reservations = res;
+        console.log('Réservations chargées:', res);
+      },
+      error: (err) => {
+        console.error('Erreur chargement réservations:', err);
+        if (err.status === 401 || err.status === 403) {
+          this.handleAuthError();
         } else {
-          console.error('Erreur chargement réservations:', err);
+          alert('Erreur lors du chargement des réservations.');
         }
       }
     });
   }
 
-  // ====== FICHIERS / IMAGES ======
   onFileSelected(event: any): void {
     this.selectedFile = event.target.files[0] as File;
   }
@@ -261,29 +246,36 @@ export class AdminDashboardComponent implements OnInit {
     imgElement.style.display = 'none';
   }
 
-  // ====== SALLES ======
   addSalle(): void {
-    if (!this.newSalleForm.valid) return;
+    if (!this.newSalleForm.valid) {
+      alert('Veuillez remplir tous les champs de la salle correctement.');
+      return;
+    }
     const headers = this.getAuthHeaders();
     if (!headers) return;
 
     const formData = new FormData();
     formData.append('nom', this.newSalleForm.get('nom')?.value);
-    formData.append('capacite', this.newSalleForm.get('capacite')?.value);
-    formData.append('prix', this.newSalleForm.get('prix')?.value);
+    formData.append('capacite', String(this.newSalleForm.get('capacite')?.value));
+    formData.append('prix', String(this.newSalleForm.get('prix')?.value));
     formData.append('status', this.newSalleForm.get('status')?.value);
     if (this.selectedFile) formData.append('image', this.selectedFile);
 
     this.http.post<Salle>(`${this.apiUrl}/salles`, formData, { headers }).subscribe({
-      next: res => {
+      next: (res) => {
         this.salles.push(res);
-        this.newSalleForm.reset();
+        this.newSalleForm.reset({ status: 'DISPONIBLE' });
         this.selectedFile = null;
         this.loadSalles();
+        alert('Salle ajoutée avec succès.');
       },
-      error: err => {
-        if (err.status === 403) alert('Accès refusé : vous ne pouvez pas ajouter une salle.');
-        else console.error('Erreur ajout salle:', err);
+      error: (err) => {
+        console.error('Erreur ajout salle:', err);
+        if (err.status === 401 || err.status === 403) {
+          this.handleAuthError();
+        } else {
+          alert('Erreur lors de l’ajout de la salle.');
+        }
       }
     });
   }
@@ -295,33 +287,41 @@ export class AdminDashboardComponent implements OnInit {
       nom: salle.nom,
       capacite: salle.capacite,
       prix: salle.prix,
-      status: salle.status
+      status: salle.status || 'DISPONIBLE'
     });
     this.selectedFile = null;
   }
 
   updateSalle(): void {
-    if (!this.editSalleForm.valid || !this.editingSalle?.id) return;
+    if (!this.editSalleForm.valid || !this.editingSalle?.id) {
+      alert('Veuillez remplir tous les champs correctement.');
+      return;
+    }
     const headers = this.getAuthHeaders();
     if (!headers) return;
 
     const formData = new FormData();
     formData.append('nom', this.editSalleForm.get('nom')?.value);
-    formData.append('capacite', this.editSalleForm.get('capacite')?.value);
-    formData.append('prix', this.editSalleForm.get('prix')?.value);
+    formData.append('capacite', String(this.newSalleForm.get('capacite')?.value));
+    formData.append('prix', String(this.newSalleForm.get('prix')?.value));
     formData.append('status', this.editSalleForm.get('status')?.value);
     if (this.selectedFile) formData.append('image', this.selectedFile);
 
     this.http.put<Salle>(`${this.apiUrl}/salles/${this.editingSalle.id}`, formData, { headers }).subscribe({
-      next: res => {
+      next: (res) => {
         const index = this.salles.findIndex(s => s.id === res.id);
         if (index !== -1) this.salles[index] = res;
         this.cancelEdit();
         this.loadSalles();
+        alert('Salle modifiée avec succès.');
       },
-      error: err => {
-        if (err.status === 403) alert('Accès refusé : vous ne pouvez pas modifier cette salle.');
-        else console.error('Erreur modification salle:', err);
+      error: (err) => {
+        console.error('Erreur modification salle:', err);
+        if (err.status === 401 || err.status === 403) {
+          this.handleAuthError();
+        } else {
+          alert('Erreur lors de la modification de la salle.');
+        }
       }
     });
   }
@@ -335,44 +335,84 @@ export class AdminDashboardComponent implements OnInit {
       next: () => {
         this.salles = this.salles.filter(s => s.id !== id);
         this.loadSalles();
+        alert('Salle supprimée avec succès.');
       },
-      error: err => {
-        if (err.status === 403) alert('Accès refusé : vous ne pouvez pas supprimer cette salle.');
-        else console.error('Erreur suppression salle:', err);
+      error: (err) => {
+        console.error('Erreur suppression salle:', err);
+        if (err.status === 401 || err.status === 403) {
+          this.handleAuthError();
+        } else {
+          alert('Erreur lors de la suppression de la salle.');
+        }
       }
     });
   }
-
-  // ====== CRENEAUX ======
   addCreneau(): void {
-    if (!this.newCreneauForm.valid) return;
+    if (!this.newCreneauForm.valid) {
+      alert('Veuillez remplir tous les champs du créneau correctement.');
+      return;
+    }
     const headers = this.getAuthHeaders();
     if (!headers) return;
 
     const data = this.newCreneauForm.value;
-
-    // Format correct pour le backend Spring
     const payload = {
       debut: new Date(data.debut).toISOString(),
       fin: new Date(data.fin).toISOString(),
-      salle: { id: data.salleId }
+      salle: { id: Number(data.salleId) },
+      personnalise: '' // Include personnalise
     };
 
     this.http.post<Creneau>(`${this.apiUrl}/creneaux`, payload, { headers }).subscribe({
       next: (res: Creneau) => {
-        // Associer la salle complète au créneau
         const salleComplete = this.salles.find(s => s.id === res.salle.id);
-        if (salleComplete) {
-          res.salle = salleComplete;
-        }
+        if (salleComplete) res.salle = salleComplete;
         this.creneaux.push(res);
         this.newCreneauForm.reset();
+        alert('Créneau ajouté avec succès.');
       },
-      error: err => {
-        if (err.status === 403) {
-          alert('Accès refusé : vous ne pouvez pas ajouter ce créneau.');
+      error: (err) => {
+        console.error('Erreur ajout créneau:', err);
+        if (err.status === 401 || err.status === 403) {
+          this.handleAuthError();
         } else {
-          console.error('Erreur ajout créneau:', err);
+          alert('Erreur lors de l’ajout du créneau: ' + (err.error?.message || 'Vérifiez les données saisies.'));
+        }
+      }
+    });
+  }
+
+  updateCreneau(): void {
+    if (!this.editCreneauForm.valid || !this.editingCreneau?.id) {
+      alert('Veuillez remplir tous les champs correctement.');
+      return;
+    }
+    const headers = this.getAuthHeaders();
+    if (!headers) return;
+
+    const data = this.editCreneauForm.value;
+    const payload = {
+      debut: new Date(data.debut).toISOString(),
+      fin: new Date(data.fin).toISOString(),
+      salle: { id: Number(data.salleId) },
+      personnalise: this.editingCreneau.personnalise || '' // Preserve or set personnalise
+    };
+
+    this.http.put<Creneau>(`${this.apiUrl}/creneaux/${this.editingCreneau.id}`, payload, { headers }).subscribe({
+      next: (res: Creneau) => {
+        const salleComplete = this.salles.find(s => s.id === res.salle.id);
+        if (salleComplete) res.salle = salleComplete;
+        const index = this.creneaux.findIndex(c => c.id === res.id);
+        if (index !== -1) this.creneaux[index] = res;
+        this.cancelEdit();
+        alert('Créneau modifié avec succès.');
+      },
+      error: (err) => {
+        console.error('Erreur modification créneau:', err);
+        if (err.status === 401 || err.status === 403) {
+          this.handleAuthError();
+        } else {
+          alert('Erreur lors de la modification du créneau: ' + (err.error?.message || 'Vérifiez les données saisies.'));
         }
       }
     });
@@ -380,84 +420,69 @@ export class AdminDashboardComponent implements OnInit {
   editCreneau(creneau: Creneau): void {
     this.editingCreneau = creneau;
     this.editCreneauForm.patchValue({
-      debut: creneau.debut.slice(0, 16), // pour <input type="datetime-local">
+      debut: creneau.debut.slice(0, 16),
       fin: creneau.fin.slice(0, 16),
       salleId: creneau.salle?.id
     });
   }
-
-  updateCreneau(): void {
-    if (!this.editCreneauForm.valid || !this.editingCreneau?.id) return;
-    const headers = this.getAuthHeaders();
-    if (!headers) return;
-
-    const data = this.editCreneauForm.value;
-
-    // Format correct pour le backend Spring
-    const payload = {
-      debut: new Date(data.debut).toISOString(),
-      fin: new Date(data.fin).toISOString(),
-      salle: { id: data.salleId }
-    };
-
-    this.http.put<Creneau>(`${this.apiUrl}/creneaux/${this.editingCreneau.id}`, payload, { headers }).subscribe({
-      next: (res: Creneau) => {
-        // Associer la salle complète au créneau
-        const salleComplete = this.salles.find(s => s.id === res.salle.id);
-        if (salleComplete) {
-          res.salle = salleComplete;
-        }
-
-        const index = this.creneaux.findIndex(c => c.id === res.id);
-        if (index !== -1) this.creneaux[index] = res;
-        this.cancelEdit();
-      },
-      error: err => {
-        if (err.status === 403) alert('Accès refusé : vous ne pouvez pas modifier ce créneau.');
-        else console.error('Erreur modification créneau:', err);
-      }
-    });
-  }
-
   deleteCreneau(id?: number): void {
     if (!id || !confirm('Êtes-vous sûr de vouloir supprimer ce créneau ?')) return;
     const headers = this.getAuthHeaders();
     if (!headers) return;
 
     this.http.delete(`${this.apiUrl}/creneaux/${id}`, { headers }).subscribe({
-      next: () => this.creneaux = this.creneaux.filter(c => c.id !== id),
-      error: err => {
-        if (err.status === 403) alert('Accès refusé : vous ne pouvez pas supprimer ce créneau.');
-        else console.error('Erreur suppression créneau:', err);
+      next: () => {
+        this.creneaux = this.creneaux.filter(c => c.id !== id);
+        alert('Créneau supprimé avec succès.');
+      },
+      error: (err) => {
+        console.error('Erreur suppression créneau:', err);
+        if (err.status === 401 || err.status === 403) {
+          this.handleAuthError();
+        } else {
+          alert('Erreur lors de la suppression du créneau: ' + (err.error?.message || 'Vérifiez les données saisies.'));
+        }
       }
     });
   }
 
-  // ====== RESERVATIONS ======
   annulerReservation(id?: number): void {
     if (!id || !confirm('Êtes-vous sûr de vouloir annuler cette réservation ?')) return;
     const headers = this.getAuthHeaders();
     if (!headers) return;
 
     this.http.delete(`${this.apiUrl}/reservations/${id}`, { headers }).subscribe({
-      next: () => this.reservations = this.reservations.filter(r => r.id !== id),
-      error: err => {
-        if (err.status === 403) alert('Accès refusé : vous ne pouvez pas annuler cette réservation.');
-        else console.error('Impossible d\'annuler cette réservation:', err);
+      next: () => {
+        this.reservations = this.reservations.filter(r => r.id !== id);
+        alert('Réservation annulée avec succès.');
+      },
+      error: (err) => {
+        console.error('Erreur annulation réservation:', err);
+        if (err.status === 401 || err.status === 403) {
+          this.handleAuthError();
+        } else {
+          alert('Erreur lors de l’annulation de la réservation: ' + (err.error?.message || 'Vérifiez les données saisies.'));
+        }
       }
     });
   }
 
-  // ====== PAIEMENTS ======
   loadReservationsAvecPaiementEnAttente(): void {
     const headers = this.getAuthHeaders();
     if (!headers) return;
 
     this.http.get<Reservation[]>(`${this.apiUrl}/reservations/paiements/en-attente`, { headers }).subscribe({
-      next: res => this.reservationsAvecPaiementEnAttente = res,
-      error: err => {
-        console.error('Erreur chargement réservations avec paiement en attente:', err);
-        if (err.status === 403) alert('Accès refusé pour les réservations avec paiement en attente.');
+      next: (res) => {
+        this.reservationsAvecPaiementEnAttente = res;
+        console.log('Réservations en attente:', res);
+      },
+      error: (err) => {
+        console.error('Erreur chargement réservations en attente:', err);
+        if (err.status === 401 || err.status === 403) {
+          this.handleAuthError();
+        } else {
+          alert('Erreur lors du chargement des réservations en attente.');
+        }
       }
     });
   }
@@ -467,10 +492,17 @@ export class AdminDashboardComponent implements OnInit {
     if (!headers) return;
 
     this.http.get<Reservation[]>(`${this.apiUrl}/reservations/paiements/payees`, { headers }).subscribe({
-      next: res => this.reservationsPayees = res,
-      error: err => {
+      next: (res) => {
+        this.reservationsPayees = res;
+        console.log('Réservations payées:', res);
+      },
+      error: (err) => {
         console.error('Erreur chargement réservations payées:', err);
-        if (err.status === 403) alert('Accès refusé pour les réservations payées.');
+        if (err.status === 401 || err.status === 403) {
+          this.handleAuthError();
+        } else {
+          alert('Erreur lors du chargement des réservations payées.');
+        }
       }
     });
   }
@@ -482,40 +514,25 @@ export class AdminDashboardComponent implements OnInit {
 
     this.http.post(`${this.apiUrl}/paiements/confirmer/${reservationId}`, {}, { headers }).subscribe({
       next: () => {
-        alert('Paiement confirmé avec succès !');
+        alert('Paiement confirmé avec succès.');
         this.loadReservationsAvecPaiementEnAttente();
         this.loadReservationsPayees();
         this.loadReservations();
       },
-      error: err => {
+      error: (err) => {
         console.error('Erreur confirmation paiement:', err);
-        alert('Erreur lors de la confirmation du paiement.');
-      }
-    });
-  }
-
-  annulerPaiement(reservationId?: number): void {
-    if (!reservationId || !confirm('Êtes-vous sûr de vouloir annuler ce paiement ?')) return;
-    const headers = this.getAuthHeaders();
-    if (!headers) return;
-
-    this.http.post(`${this.apiUrl}/paiements/annuler/${reservationId}`, {}, { headers }).subscribe({
-      next: () => {
-        alert('Paiement annulé avec succès !');
-        this.loadReservationsAvecPaiementEnAttente();
-        this.loadReservationsPayees();
-        this.loadReservations();
-      },
-      error: err => {
-        console.error('Erreur annulation paiement:', err);
-        alert('Erreur lors de l\'annulation du paiement.');
+        if (err.status === 401 || err.status === 403) {
+          this.handleAuthError();
+        } else {
+          alert('Erreur lors de la confirmation du paiement: ' + (err.error?.message || 'Vérifiez les données saisies.'));
+        }
       }
     });
   }
 
   getPaiementStatusClass(status: string): string {
     switch (status) {
-      case 'PAYE': return 'status-paye';
+      case 'PAYEE': return 'status-paye';
       case 'EN_ATTENTE': return 'status-en-attente';
       case 'ANNULE': return 'status-annule';
       default: return '';
@@ -524,14 +541,13 @@ export class AdminDashboardComponent implements OnInit {
 
   getPaiementStatusText(status: string): string {
     switch (status) {
-      case 'PAYE': return 'Payé';
+      case 'PAYEE': return 'Payé';
       case 'EN_ATTENTE': return 'En attente';
       case 'ANNULE': return 'Annulé';
       default: return status;
     }
   }
 
-  // ====== UI HELPERS ======
   cancelEdit(): void {
     this.editingCreneau = null;
     this.editingSalle = null;
@@ -542,11 +558,9 @@ export class AdminDashboardComponent implements OnInit {
 
   formatDate(dateString?: string): string {
     if (!dateString) return 'Non défini';
-
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return 'Date invalide';
-
       return this.datePipe.transform(date, 'dd/MM/yyyy HH:mm') || 'Format invalide';
     } catch (error) {
       return 'Erreur de format';
@@ -563,12 +577,40 @@ export class AdminDashboardComponent implements OnInit {
       .slice(0, 5);
   }
 
-  getStatusClass(status: string): string {
+  getStatusClass(status: string | undefined): string {
+    if (!status) return '';
     switch (status) {
       case 'DISPONIBLE': return 'status-available';
       case 'INDISPONIBLE': return 'status-unavailable';
       case 'MAINTENANCE': return 'status-maintenance';
       default: return '';
     }
+  }
+
+  private handleAuthError(): void {
+    alert('Session expirée. Veuillez vous reconnecter.');
+    this.logout();
+  }
+  annulerPaiement(reservationId?: number): void {
+    if (!reservationId || !confirm('Êtes-vous sûr de vouloir annuler ce paiement ?')) return;
+    const headers = this.getAuthHeaders();
+    if (!headers) return;
+
+    this.http.post(`${this.apiUrl}/paiements/annuler/${reservationId}`, {}, { headers }).subscribe({
+      next: () => {
+        alert('Paiement annulé avec succès.');
+        this.loadReservationsAvecPaiementEnAttente();
+        this.loadReservationsPayees();
+        this.loadReservations();
+      },
+      error: (err) => {
+        console.error('Erreur annulation paiement:', err);
+        if (err.status === 401 || err.status === 403) {
+          this.handleAuthError();
+        } else {
+          alert('Erreur lors de l’annulation du paiement: ' + (err.error?.message || 'Vérifiez les données saisies.'));
+        }
+      }
+    });
   }
 }

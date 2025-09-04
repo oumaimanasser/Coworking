@@ -33,9 +33,15 @@
   <div *ngIf="currentPage === 'login'" class="page-content">
     <h2><i class="fas fa-user-lock"></i> Connexion Admin</h2>
     <form [formGroup]="loginForm" (ngSubmit)="login()" class="form-container">
-      <input type="email" formControlName="email" placeholder="Email" />
-      <input type="password" formControlName="password" placeholder="Mot de passe" />
-      <button type="submit" [disabled]="!loginForm.valid">Se connecter</button>
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input id="email" type="email" formControlName="email" class="form-input" placeholder="Email" />
+      </div>
+      <div class="form-group">
+        <label for="password">Mot de passe</label>
+        <input id="password" type="password" formControlName="password" class="form-input" placeholder="Mot de passe" />
+      </div>
+      <button type="submit" class="submit-btn" [disabled]="!loginForm.valid">Se connecter</button>
     </form>
   </div>
 
@@ -63,6 +69,252 @@
           <p>Total Salles</p>
         </div>
       </div>
+    </div>
+    <div class="section-header">
+      <h2><i class="fas fa-calendar-check"></i> Dernières Réservations</h2>
+    </div>
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+        <tr>
+          <th>Client</th>
+          <th>Salle</th>
+          <th>Créneau</th>
+          <th>Personnes</th>
+          <th>Date Réservation</th>
+          <th>Statut</th>
+          <th>Actions</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr *ngFor="let r of getRecentReservations()">
+          <td>{{ r.clientName }}</td>
+          <td>{{ r.salle?.nom || 'Indisponible' }}</td>
+          <td>{{ formatDate(r.creneau?.debut) }} - {{ formatDate(r.creneau?.fin) }}</td>
+          <td>{{ r.nombrePersonnes || 1 }}</td>
+          <td>{{ formatDate(r.dateReservation) }}</td>
+          <td>
+              <span class="status-badge" [ngClass]="getPaiementStatusClass(r.paiementStatus)">
+                {{ getPaiementStatusText(r.paiementStatus) }}
+              </span>
+          </td>
+          <td>
+            <div class="action-buttons">
+              <button class="action-btn delete-btn" (click)="annulerReservation(r.id)">
+                <i class="fas fa-times"></i> Annuler
+              </button>
+            </div>
+          </td>
+        </tr>
+        <tr *ngIf="getRecentReservations().length === 0">
+          <td colspan="7" class="no-data">Aucune réservation récente</td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===== RÉSERVATIONS PAGE ===== -->
+  <div *ngIf="currentPage === 'reservations'" class="page-content">
+    <div class="section-header">
+      <h2><i class="fas fa-calendar-check"></i> Gestion des Réservations</h2>
+    </div>
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+        <tr>
+          <th>Client</th>
+          <th>Salle</th>
+          <th>Créneau</th>
+          <th>Personnes</th>
+          <th>Date Réservation</th>
+          <th>Statut</th>
+          <th>Actions</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr *ngFor="let r of reservations">
+          <td>{{ r.clientName }}</td>
+          <td>{{ r.salle?.nom || 'Indisponible' }}</td>
+          <td>{{ formatDate(r.creneau?.debut) }} - {{ formatDate(r.creneau?.fin) }}</td>
+          <td>{{ r.nombrePersonnes || 1 }}</td>
+          <td>{{ formatDate(r.dateReservation) }}</td>
+          <td>
+              <span class="status-badge" [ngClass]="getPaiementStatusClass(r.paiementStatus)">
+                {{ getPaiementStatusText(r.paiementStatus) }}
+              </span>
+          </td>
+          <td>
+            <div class="action-buttons">
+              <button class="action-btn delete-btn" (click)="annulerReservation(r.id)">
+                <i class="fas fa-times"></i> Annuler
+              </button>
+            </div>
+          </td>
+        </tr>
+        <tr *ngIf="reservations.length === 0">
+          <td colspan="7" class="no-data">Aucune réservation</td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===== CRÉNEAUX PAGE ===== -->
+  <div *ngIf="currentPage === 'creneaux'" class="page-content">
+    <div class="section-header">
+      <h2><i class="fas fa-clock"></i> Gestion des Créneaux</h2>
+    </div>
+    <form [formGroup]="newCreneauForm" (ngSubmit)="addCreneau()" class="form-container">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="debut">Date et heure de début</label>
+          <input id="debut" type="datetime-local" formControlName="debut" class="form-input" />
+        </div>
+        <div class="form-group">
+          <label for="fin">Date et heure de fin</label>
+          <input id="fin" type="datetime-local" formControlName="fin" class="form-input" />
+        </div>
+        <div class="form-group">
+          <label for="salleId">Salle</label>
+          <select id="salleId" formControlName="salleId" class="form-input">
+            <option value="">Sélectionnez une salle</option>
+            <option *ngFor="let salle of salles" [value]="salle.id">{{ salle.nom }}</option>
+          </select>
+        </div>
+      </div>
+      <div class="action-buttons">
+        <button type="submit" class="submit-btn" [disabled]="!newCreneauForm.valid">Ajouter Créneau</button>
+      </div>
+    </form>
+    <div class="creneaux-list">
+      <div class="creneau-item" *ngFor="let c of creneaux">
+        <div class="creneau-info">
+          <p><strong>Salle:</strong> {{ c.salle?.nom || 'Indisponible' }}</p>
+          <p><strong>Début:</strong> {{ formatDate(c.debut) }}</p>
+          <p><strong>Fin:</strong> {{ formatDate(c.fin) }}</p>
+        </div>
+        <div class="action-buttons">
+          <button class="action-btn edit-btn" (click)="editCreneau(c)">Modifier</button>
+          <button class="action-btn delete-btn" (click)="deleteCreneau(c.id)">Supprimer</button>
+        </div>
+      </div>
+      <div *ngIf="creneaux.length === 0" class="no-data">Aucun créneau</div>
+    </div>
+    <div *ngIf="editingCreneau" class="form-container">
+      <h3>Modifier Créneau</h3>
+      <form [formGroup]="editCreneauForm" (ngSubmit)="updateCreneau()">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="editDebut">Date et heure de début</label>
+            <input id="editDebut" type="datetime-local" formControlName="debut" class="form-input" />
+          </div>
+          <div class="form-group">
+            <label for="editFin">Date et heure de fin</label>
+            <input id="editFin" type="datetime-local" formControlName="fin" class="form-input" />
+          </div>
+          <div class="form-group">
+            <label for="editSalleId">Salle</label>
+            <select id="editSalleId" formControlName="salleId" class="form-input">
+              <option value="">Sélectionnez une salle</option>
+              <option *ngFor="let salle of salles" [value]="salle.id">{{ salle.nom }}</option>
+            </select>
+          </div>
+        </div>
+        <div class="action-buttons">
+          <button type="submit" class="submit-btn" [disabled]="!editCreneauForm.valid">Mettre à jour</button>
+          <button type="button" class="cancel-btn" (click)="cancelEdit()">Annuler</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== SALLES PAGE ===== -->
+  <div *ngIf="currentPage === 'salles'" class="page-content">
+    <div class="section-header">
+      <h2><i class="fas fa-building"></i> Gestion des Salles</h2>
+    </div>
+    <form [formGroup]="newSalleForm" (ngSubmit)="addSalle()" class="form-container">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="nom">Nom</label>
+          <input id="nom" formControlName="nom" class="form-input" placeholder="Nom de la salle" />
+        </div>
+        <div class="form-group">
+          <label for="capacite">Capacité</label>
+          <input id="capacite" type="number" formControlName="capacite" class="form-input" min="1" />
+        </div>
+        <div class="form-group">
+          <label for="prix">Prix (€)</label>
+          <input id="prix" type="number" formControlName="prix" class="form-input" min="0" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label for="status">Statut</label>
+          <select id="status" formControlName="status" class="form-input">
+            <option value="DISPONIBLE">Disponible</option>
+            <option value="INDISPONIBLE">Indisponible</option>
+            <option value="MAINTENANCE">Maintenance</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="image">Image</label>
+        <input id="image" type="file" (change)="onFileSelected($event)" accept="image/*" class="form-input" />
+      </div>
+      <div class="action-buttons">
+        <button type="submit" class="submit-btn" [disabled]="!newSalleForm.valid">Ajouter Salle</button>
+      </div>
+    </form>
+    <div class="salles-list">
+      <div class="salle-item" *ngFor="let s of salles">
+        <div class="salle-info">
+          <img [src]="getImageUrl(s.imagePath)" (error)="onImageError($event)" alt="Salle Image" style="max-width: 100px; border-radius: 8px;" *ngIf="s.imagePath" />
+          <p><strong>Nom:</strong> {{ s.nom }}</p>
+          <p><strong>Capacité:</strong> {{ s.capacite }} personnes</p>
+          <p><strong>Prix:</strong> {{ s.prix | currency:'EUR' }}</p>
+          <p><strong>Statut:</strong> <span class="status-badge" [ngClass]="getStatusClass(s.status)">{{ s.status }}</span></p>
+        </div>
+        <div class="action-buttons">
+          <button class="action-btn edit-btn" (click)="editSalle(s)">Modifier</button>
+          <button class="action-btn delete-btn" (click)="deleteSalle(s.id)">Supprimer</button>
+        </div>
+      </div>
+      <div *ngIf="salles.length === 0" class="no-data">Aucune salle</div>
+    </div>
+    <div *ngIf="editingSalle" class="form-container">
+      <h3>Modifier Salle</h3>
+      <form [formGroup]="editSalleForm" (ngSubmit)="updateSalle()">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="editNom">Nom</label>
+            <input id="editNom" formControlName="nom" class="form-input" placeholder="Nom de la salle" />
+          </div>
+          <div class="form-group">
+            <label for="editCapacite">Capacité</label>
+            <input id="editCapacite" type="number" formControlName="capacite" class="form-input" min="1" />
+          </div>
+          <div class="form-group">
+            <label for="editPrix">Prix (€)</label>
+            <input id="editPrix" type="number" formControlName="prix" class="form-input" min="0" step="0.01" />
+          </div>
+          <div class="form-group">
+            <label for="editStatus">Statut</label>
+            <select id="editStatus" formControlName="status" class="form-input">
+              <option value="DISPONIBLE">Disponible</option>
+              <option value="INDISPONIBLE">Indisponible</option>
+              <option value="MAINTENANCE">Maintenance</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="editImage">Nouvelle Image</label>
+          <input id="editImage" type="file" (change)="onFileSelected($event)" accept="image/*" class="form-input" />
+        </div>
+        <div class="action-buttons">
+          <button type="submit" class="submit-btn" [disabled]="!editSalleForm.valid">Mettre à jour</button>
+          <button type="button" class="cancel-btn" (click)="cancelEdit()">Annuler</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -132,7 +384,6 @@
             <th>Personnes</th>
             <th>Date Réservation</th>
             <th>Statut Paiement</th>
-            <th>Date Paiement</th>
           </tr>
           </thead>
           <tbody>
@@ -147,10 +398,9 @@
                   {{ getPaiementStatusText(r.paiementStatus) }}
                 </span>
             </td>
-            <td>{{ formatDate(r.datePaiement) }}</td>
           </tr>
           <tr *ngIf="reservationsPayees.length === 0">
-            <td colspan="7" class="no-data">Aucun paiement confirmé</td>
+            <td colspan="6" class="no-data">Aucun paiement confirmé</td>
           </tr>
           </tbody>
         </table>

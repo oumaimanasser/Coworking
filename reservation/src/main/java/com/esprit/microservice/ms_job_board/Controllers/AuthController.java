@@ -20,10 +20,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
@@ -123,17 +120,20 @@ public class AuthController {
             User user = userRepository.findByEmail(email)
                     .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé après authentification"));
 
-            // Générer le token JWT
-            String token = jwtService.generateToken(user.getEmail());
+            // Get authorities (roles)
+            List<String> authorities = authentication.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .collect(Collectors.toList());
+
+            // Générer le token JWT avec username, email, roles
+            String token = jwtService.generateToken(user.getUsername(), user.getEmail(), authorities);
 
             return ResponseEntity.ok(Map.of(
                     "message", "Connexion réussie !",
                     "token", token,
                     "email", user.getEmail(),
                     "username", user.getUsername(),
-                    "authorities", authentication.getAuthorities().stream()
-                            .map(GrantedAuthority::getAuthority)
-                            .collect(Collectors.toList())
+                    "authorities", authorities
             ));
         } catch (BadCredentialsException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Email ou mot de passe incorrect"));

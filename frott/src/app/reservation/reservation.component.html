@@ -1,7 +1,7 @@
 <div class="reservation-container">
   <div class="header">
     <h1><i class="fas fa-calendar-check"></i> Réservation de Salle</h1>
-    <p>Créez votre créneau personnalisé en choisissant directement vos horaires</p>
+    <p>Réservez en sélectionnant un créneau existant ou créez un créneau personnalisé</p>
   </div>
 
   <div class="content">
@@ -15,12 +15,9 @@
       <h2><i class="fas fa-building"></i> Sélectionnez une salle</h2>
       <div class="form-group">
         <label for="salleSelect">Choisir une salle *</label>
-        <select id="salleSelect" class="form-input" [(ngModel)]="selectedSalle"
-                (change)="onSalleChange()" [disabled]="isLoading" required>
+        <select id="salleSelect" class="form-input" [(ngModel)]="selectedSalle" (ngModelChange)="onSalleChange()" [disabled]="isLoading" required>
           <option [ngValue]="null">Sélectionnez une salle</option>
-          <option *ngFor="let salle of salles" [ngValue]="salle.id">
-            {{ salle.nom }} ({{ salle.capacite }} personnes) - {{ salle.prix | currency:'EUR' }}
-          </option>
+          <option *ngFor="let salle of salles" [ngValue]="salle">{{ salle.nom }} ({{ salle.capacite }} personnes) - {{ salle.prix | currency:'EUR' }}</option>
         </select>
       </div>
     </div>
@@ -40,53 +37,69 @@
       <h2><i class="fas fa-users"></i> Nombre de personnes</h2>
       <div class="form-group">
         <label for="nombrePersonnes">Nombre de personnes *</label>
-        <input id="nombrePersonnes" type="number" class="form-input"
-               [(ngModel)]="nombrePersonnes"
-               (change)="onNombrePersonnesChange()"
-               [min]="1"
-               [max]="getSelectedSalleCapacite()"
-               required>
-        <span class="capacity-info" *ngIf="selectedSalle">
-          Capacité maximale: {{ getSelectedSalleCapacite() }} personnes
-        </span>
+        <input id="nombrePersonnes" type="number" class="form-input" [(ngModel)]="nombrePersonnes" (ngModelChange)="onNombrePersonnesChange()" [min]="1" [max]="getSelectedSalleCapacite()" required>
+        <span class="capacity-info">Capacité maximale: {{ getSelectedSalleCapacite() }} personnes</span>
+        <span class="capacity-warning" *ngIf="nombrePersonnes > getSelectedSalleCapacite()">Le nombre de personnes dépasse la capacité maximale !</span>
+      </div>
+    </div>
+
+    <!-- Sélection du mode créneau -->
+    <div class="form-section" *ngIf="selectedSalle">
+      <h2><i class="fas fa-clock"></i> Mode de sélection du créneau</h2>
+      <div class="form-group">
+        <label>
+          <input type="radio" [(ngModel)]="useCustomCreneau" [value]="false" (change)="toggleCreneauMode(false)" [disabled]="isLoading">
+          Choisir un créneau existant
+        </label>
+        <label>
+          <input type="radio" [(ngModel)]="useCustomCreneau" [value]="true" (change)="toggleCreneauMode(true)" [disabled]="isLoading">
+          Créer un créneau personnalisé
+        </label>
+      </div>
+    </div>
+
+    <!-- Créneaux existants -->
+    <div class="form-section" *ngIf="selectedSalle && !useCustomCreneau">
+      <h2><i class="fas fa-calendar-alt"></i> Sélectionnez un créneau</h2>
+      <div class="form-group">
+        <label for="creneauSelect">Choisir un créneau *</label>
+        <select id="creneauSelect" class="form-input" [(ngModel)]="selectedCreneau" (ngModelChange)="onCreneauChange()" [disabled]="isLoading || creneaux.length === 0" required>
+          <option [ngValue]="null">Sélectionnez un créneau</option>
+          <option *ngFor="let creneau of creneaux" [ngValue]="creneau.id">
+            {{ formatDisplayDate(creneau.debut) }} - {{ formatDisplayDate(creneau.fin) }}
+          </option>
+        </select>
+        <span *ngIf="creneaux.length === 0" class="no-data">Aucun créneau disponible pour cette salle.</span>
       </div>
     </div>
 
     <!-- Créneau personnalisé -->
-    <div class="form-section" *ngIf="selectedSalle">
+    <div class="form-section" *ngIf="selectedSalle && useCustomCreneau">
       <h2><i class="fas fa-magic"></i> Créneau personnalisé</h2>
       <div class="personnalise-form">
         <div class="form-row">
           <div class="form-group">
             <label>Date et heure de début *</label>
-            <input type="datetime-local" class="form-input"
-                   [(ngModel)]="creneauPersonnalise.debut"
-                   [min]="getTodayDate() + 'T00:00'"
-                   (change)="onCreneauChange()">
+            <input type="datetime-local" class="form-input" [(ngModel)]="creneauPersonnalise.debut" [min]="getTodayDate() + 'T00:00'" (ngModelChange)="onCreneauChange()" required>
           </div>
           <div class="form-group">
             <label>Date et heure de fin *</label>
-            <input type="datetime-local" class="form-input"
-                   [(ngModel)]="creneauPersonnalise.fin"
-                   [min]="getTodayDate() + 'T00:00'"
-                   (change)="onCreneauChange()">
+            <input type="datetime-local" class="form-input" [(ngModel)]="creneauPersonnalise.fin" [min]="creneauPersonnalise.debut || getTodayDate() + 'T00:00'" (ngModelChange)="onCreneauChange()" required>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Résumé de la sélection -->
-    <div class="selection-summary" *ngIf="creneauPersonnalise.debut && creneauPersonnalise.fin && selectedSalle">
-      <h3><i class="fas fa-check-circle"></i> Créneau sélectionné</h3>
+    <div class="selection-summary" *ngIf="selectedSalle && (selectedCreneau || (creneauPersonnalise.debut && creneauPersonnalise.fin))">
+      <h3><i class="fas fa-check-circle"></i> Résumé de la réservation</h3>
       <div class="summary-card">
         <p><strong>Salle:</strong> {{ getSelectedSalleName() }}</p>
         <p><strong>Prix:</strong> {{ getSelectedSallePrix() | currency:'EUR' }}</p>
         <p><strong>Nombre de personnes:</strong> {{ nombrePersonnes }}</p>
-        <p><strong>Début:</strong> {{ formatDisplayDate(creneauPersonnalise.debut) }}</p>
-        <p><strong>Fin:</strong> {{ formatDisplayDate(creneauPersonnalise.fin) }}</p>
-        <p class="personnalise-badge">
-          <i class="fas fa-star"></i> Créneau personnalisé
-        </p>
+        <p><strong>Début:</strong> {{ useCustomCreneau ? formatDisplayDate(creneauPersonnalise.debut) : formatDisplayDate(getSelectedCreneau()?.debut) }}</p>
+        <p><strong>Fin:</strong> {{ useCustomCreneau ? formatDisplayDate(creneauPersonnalise.fin) : formatDisplayDate(getSelectedCreneau()?.fin) }}</p>
+        <p *ngIf="useCustomCreneau" class="personnalise-badge"><i class="fas fa-star"></i> Créneau personnalisé</p>
       </div>
     </div>
 
@@ -105,13 +118,11 @@
         <div class="confirmation-details">
           <p><strong>Salle:</strong> {{ getSelectedSalleName() }}</p>
           <p><strong>Prix:</strong> {{ getSelectedSallePrix() | currency:'EUR' }}</p>
-          <p><strong>Date:</strong> {{ formatDisplayDate(selectedCreneau?.debut) }}</p>
-          <p><strong>Durée:</strong> {{ formatDisplayDate(selectedCreneau?.debut) }} - {{ formatDisplayDate(selectedCreneau?.fin) }}</p>
           <p><strong>Nombre de personnes:</strong> {{ nombrePersonnes }}</p>
+          <p><strong>Début:</strong> {{ useCustomCreneau ? formatDisplayDate(creneauPersonnalise.debut) : formatDisplayDate(getSelectedCreneau()?.debut) }}</p>
+          <p><strong>Fin:</strong> {{ useCustomCreneau ? formatDisplayDate(creneauPersonnalise.fin) : formatDisplayDate(getSelectedCreneau()?.fin) }}</p>
         </div>
-        <p *ngIf="currentUser?.email">
-          Un email de confirmation a été envoyé à <strong>{{ currentUser?.email }}</strong>
-        </p>
+        <p *ngIf="currentUser?.email">Un email de confirmation a été envoyé à <strong>{{ currentUser?.email }}</strong></p>
         <button class="new-reservation-btn" (click)="resetForm()">
           <i class="fas fa-plus"></i> Nouvelle réservation
         </button>
@@ -121,8 +132,7 @@
     <!-- Bouton de réservation -->
     <div class="action-buttons" *ngIf="!showConfirmation">
       <button class="submit-btn" [disabled]="!canReserve() || isLoading" (click)="reserver()">
-        <i class="fas" [class.fa-spinner]="isLoading" [class.fa-pulse]="isLoading"
-           [class.fa-calendar-check]="!isLoading"></i>
+        <i class="fas" [class.fa-spinner]="isLoading" [class.fa-pulse]="isLoading" [class.fa-calendar-check]="!isLoading"></i>
         {{ isLoading ? 'Traitement...' : 'Confirmer la réservation' }}
       </button>
     </div>

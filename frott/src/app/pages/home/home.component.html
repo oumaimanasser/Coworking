@@ -2,17 +2,14 @@
 <header class="header">
   <div class="container">
     <div class="nav-wrapper">
-      <!-- Logo -->
       <div class="logo">
         <h1>WH<span class="logo-o">O</span>RKS</h1>
       </div>
-
-      <!-- Navigation simplifiée -->
       <nav class="nav">
         <a routerLink="/reservation" class="btn-primary">RÉSERVER UNE SALLE</a>
         <a routerLink="/login" class="btn-login">SE CONNECTER</a>
         <a routerLink="/register" class="btn-register">S'INSCRIRE</a>
-        <a routerLink="/home" class="btn-secondary">CONTACT</a>
+        <a routerLink="/home" class="btn-secondary" (click)="scrollToContact()">CONTACT</a>
       </nav>
     </div>
   </div>
@@ -24,51 +21,100 @@
     <div class="hero-content">
       <div class="hero-text">
         <h1 class="hero-title">
-          COWORKINGS FLEXIBLES ET<br />
-          INSPIRANTS
+          COWORKINGS FLEXIBLES ET<br />INSPIRANTS
         </h1>
         <p class="hero-subtitle">
-          Des espaces de travail qui s'adaptent à votre<br />
-          équipe à Rennes, Nantes et Bordeaux.
+          Des espaces de travail adaptés à votre équipe à Rennes, Nantes et Bordeaux.
         </p>
+        <button class="discover-btn" (click)="goToReservation()">Réserver Maintenant</button>
       </div>
     </div>
   </div>
 </section>
 
-<!-- Features Section -->
-<section class="features-section">
+<!-- Featured Spaces Section -->
+<section class="featured-spaces" *ngIf="!isLoading; else loading">
   <div class="container">
-    <h2 class="features-title">LES BUREAUX EN COWORKING WHOORKS, CE SONT</h2>
-
-    <div class="features-grid">
-      <div class="feature-item">
-        <div class="feature-icon">
-          <img src="https://images.unsplash.com/photo-1497366811353-6870744d04b2?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80" alt="Implantations stratégiques" class="feature-img" />
+    <h2 class="section-title">Nos Salles Disponibles</h2>
+    <div class="space-grid" *ngIf="salles.length > 0; else noSalles">
+      <div class="space-card" *ngFor="let salle of salles">
+        <img [src]="getImageUrl(salle.imagePath)" (error)="onImageError($event)" alt="{{ salle.nom }}" class="space-image" />
+        <div class="space-info">
+          <h3>{{ salle.nom }}</h3>
+          <p><strong>Capacité:</strong> {{ salle.capacite }} personnes</p>
+          <p><strong>Prix:</strong> {{ salle.prix | currency:'EUR' }}</p>
+          <p><strong>Disponibilité:</strong> {{ salle.status }}</p>
+          <button class="reserve-btn" (click)="goToReservation(salle)">Réserver</button>
         </div>
-        <h3>Des implantations stratégiques</h3>
-      </div>
-
-      <div class="feature-item">
-        <div class="feature-icon">
-          <img src="https://images.unsplash.com/photo-1497366811353-6870744d04b2?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80" alt="Lieux chaleureux" class="feature-img" />
-        </div>
-        <h3>Des lieux chaleureux et inspirants</h3>
-      </div>
-
-      <div class="feature-item">
-        <div class="feature-icon">
-          <img src="https://images.unsplash.com/photo-1497366811353-6870744d04b2?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80" alt="Espaces modulables" class="feature-img" />
-        </div>
-        <h3>Des espaces évolutifs et modulables</h3>
-      </div>
-
-      <div class="feature-item">
-        <div class="feature-icon">
-          <img src="https://images.unsplash.com/photo-1497366811353-6870744d04b2?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80" alt="Infrastructure technique" class="feature-img" />
-        </div>
-        <h3>Une infrastructure technique performante</h3>
       </div>
     </div>
+    <ng-template #noSalles>
+      <p class="no-data" *ngIf="!errorMessage">{{ errorMessage || 'Aucune salle disponible pour le moment.' }}</p>
+    </ng-template>
   </div>
 </section>
+<ng-template #loading>
+  <div class="loading-container">
+    <i class="fas fa-spinner fa-spin"></i> Chargement des salles...
+  </div>
+</ng-template>
+
+<!-- Contact Section -->
+<section class="contact-section" id="contact-section">
+  <div class="container">
+    <h2 class="section-title"><i class="fas fa-envelope"></i> Contactez-nous</h2>
+    <p class="section-subtitle">Nous sommes là pour vous aider. Remplissez le formulaire ci-dessous.</p>
+    <form class="contact-form" (ngSubmit)="onSubmitContact()">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="contactName">Nom</label>
+          <input id="contactName" type="text" class="form-control" [(ngModel)]="contactForm.name" required />
+        </div>
+        <div class="form-group">
+          <label for="contactEmail">Email</label>
+          <input id="contactEmail" type="email" class="form-control" [(ngModel)]="contactForm.email" required />
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="contactMessage">Message</label>
+        <textarea id="contactMessage" class="form-control" [(ngModel)]="contactForm.message" rows="4" required></textarea>
+      </div>
+      <button type="submit" class="btn-primary" [disabled]="!contactForm.name || !contactForm.email || !contactForm.message">Envoyer</button>
+    </form>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-content">
+      <div class="footer-section">
+        <h4>WH<span class="logo-o">O</span>RKS</h4>
+        <p>123 Rue des Espaces, 75001 Paris, France</p>
+        <p>Email: contact&#64;whorks.com</p>
+        <p>Téléphone: +33 1 23 45 67 89</p>
+      </div>
+      <div class="footer-section">
+        <h4>Liens Utiles</h4>
+        <ul>
+          <li><a routerLink="/reservation">Réservations</a></li>
+          <li><a routerLink="/solutions-bureaux">Solutions Bureaux</a></li>
+          <li><a routerLink="/salles-reunion">Salles de Réunion</a></li>
+          <li><a routerLink="/lieux-evenements">Lieux Événements</a></li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h4>Suivez-nous</h4>
+        <div class="social-links">
+          <a href="https://facebook.com" target="_blank"><i class="fab fa-facebook-f"></i></a>
+          <a href="https://twitter.com" target="_blank"><i class="fab fa-twitter"></i></a>
+          <a href="https://instagram.com" target="_blank"><i class="fab fa-instagram"></i></a>
+          <a href="https://linkedin.com" target="_blank"><i class="fab fa-linkedin-in"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; 2025 WH<span class="logo-o">O</span>RKS. Tous droits réservés.</p>
+    </div>
+  </div>
+</footer>

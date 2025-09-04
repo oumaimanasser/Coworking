@@ -48,11 +48,15 @@
   margin-bottom: 20px;
 }
 
-label {
+.form-group label {
   display: block;
   margin-bottom: 8px;
   font-weight: 600;
   color: #444;
+}
+
+.form-group input[type="radio"] {
+  margin-right: 10px;
 }
 
 .form-input {
@@ -70,7 +74,16 @@ label {
   box-shadow: 0 0 0 3px rgba(75, 108, 183, 0.2);
 }
 
-/* Style spécifique pour le champ nombre de personnes */
+.form-input.ng-invalid.ng-touched,
+#nombrePersonnes.ng-invalid.ng-touched {
+  border-color: #dc3545;
+}
+
+.form-input.ng-valid.ng-touched,
+#nombrePersonnes.ng-valid.ng-touched {
+  border-color: #28a745;
+}
+
 #nombrePersonnes {
   width: 100%;
   padding: 12px 15px;
@@ -86,7 +99,6 @@ label {
   box-shadow: 0 0 0 3px rgba(75, 108, 183, 0.2);
 }
 
-/* Style pour le message de capacité */
 .capacity-info {
   display: block;
   margin-top: 8px;
@@ -106,10 +118,23 @@ label {
   gap: 20px;
 }
 
-@media (max-width: 600px) {
-  .form-row {
-    grid-template-columns: 1fr;
-  }
+.salle-info {
+  margin: 20px 0;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+}
+
+.salle-details-card {
+  background: white;
+  padding: 15px;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.salle-details-card p {
+  margin: 8px 0;
 }
 
 .selection-summary {
@@ -126,14 +151,21 @@ label {
 }
 
 .summary-card {
-  background: #f8f9fa;
-  border-left: 4px solid #4b6cb7;
+  background: white;
   padding: 20px;
-  border-radius: 6px;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  margin-top: 15px;
 }
 
 .summary-card p {
-  margin-bottom: 10px;
+  margin: 10px 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.summary-card p:last-child {
+  border-bottom: none;
 }
 
 .personnalise-badge {
@@ -159,6 +191,7 @@ label {
   background: #ffeaea;
   color: #dc3545;
   border-left: 4px solid #dc3545;
+  animation: shake 0.5s ease;
 }
 
 .message.success {
@@ -169,6 +202,18 @@ label {
 
 .message-content h3 {
   margin-bottom: 5px;
+}
+
+.confirmation-details {
+  background-color: #f0f8ff;
+  padding: 15px;
+  border-radius: 6px;
+  margin: 15px 0;
+  border-left: 4px solid #28a745;
+}
+
+.confirmation-details p {
+  margin: 8px 0;
 }
 
 .action-buttons {
@@ -221,6 +266,13 @@ label {
   background: #218838;
 }
 
+.no-data {
+  text-align: center;
+  padding: 20px;
+  color: #6c757d;
+  font-style: italic;
+}
+
 .loading-overlay {
   position: absolute;
   top: 0;
@@ -256,91 +308,26 @@ label {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Styles pour les icônes */
-.fas {
-  font-size: 18px;
-}
-
-/* Animation pour les messages d'erreur */
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
   25% { transform: translateX(-5px); }
   75% { transform: translateX(5px); }
 }
 
-.message.error {
-  animation: shake 0.5s ease;
-}
-
-/* Style pour les champs invalides */
-.form-input.ng-invalid.ng-touched,
-#nombrePersonnes.ng-invalid.ng-touched {
-  border-color: #dc3545;
-}
-
-/* Style pour les champs valides */
-.form-input.ng-valid.ng-touched,
-#nombrePersonnes.ng-valid.ng-touched {
-  border-color: #28a745;
-}/* Styles for the new price elements */
-.salle-info {
-  margin: 20px 0;
-  padding: 15px;
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  border-left: 4px solid #667eea;
-}
-
-.salle-details-card {
-  background: white;
-  padding: 15px;
-  border-radius: 6px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.salle-details-card p {
-  margin: 8px 0;
-}
-
-.confirmation-details {
-  background-color: #f0f8ff;
-  padding: 15px;
-  border-radius: 6px;
-  margin: 15px 0;
-  border-left: 4px solid #28a745;
-}
-
-.confirmation-details p {
-  margin: 8px 0;
-}
-
-/* Update the summary card */
-.summary-card {
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  margin-top: 15px;
-}
-
-.summary-card p {
-  margin: 10px 0;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #eee;
-}
-
-.summary-card p:last-child {
-  border-bottom: none;
-}
-
-/* Make price stand out */
 .summary-card p strong:nth-child(2),
 .confirmation-details p strong:nth-child(2) {
   color: #28a745;
 }
 
-/* Responsive adjustments */
+.fas {
+  font-size: 18px;
+}
+
 @media (max-width: 768px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
   .salle-info, .confirmation-details {
     padding: 10px;
   }

@@ -34,4 +34,20 @@ public class PaiementController {
                     .body(Map.of("message", "Erreur interne lors de la confirmation du paiement"));
         }
     }
+    @PostMapping("/annuler/{reservationId}")
+    public ResponseEntity<?> annulerPaiement(@PathVariable Long reservationId) {
+        try {
+            Reservation reservation = paiementService.annulerPaiement(reservationId);
+            return ResponseEntity.ok(Map.of(
+                    "message", "Paiement annulé avec succès",
+                    "reservation", reservation
+            ));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(Map.of("message", "Erreur interne lors de l'annulation du paiement"));
+        }
+    }
 }

@@ -22,4 +22,5 @@ public interface UserRepository extends JpaRepository<User, Long> {
     // Méthode alternative si besoin du premier utilisateur
     @Query("SELECT u FROM User u WHERE u.username = :username ORDER BY u.id LIMIT 1")
     Optional<User> findFirstByUsername(@Param("username") String username);
-}
+
+      }

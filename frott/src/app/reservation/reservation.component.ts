@@ -1,10 +1,9 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ReservationService } from '../services/reservation.service';
-import { AuthService, User } from '../services/auth.service';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Router } from '@angular/router';
+import { AuthService, User } from '../services/auth.service';
 
 export interface Salle {
   id: number;
@@ -12,15 +11,27 @@ export interface Salle {
   capacite: number;
   prix: number;
   imagePath?: string;
-  status?: string;
+  status?: 'DISPONIBLE' | 'INDISPONIBLE' | 'MAINTENANCE';
 }
 
-interface Creneau {
-  id?: number;
-  debut: string;
-  fin: string;
+export interface Creneau {
+  id: number;
+  debut: string; // ISO format
+  fin: string;   // ISO format
   salle: Salle;
-  personnalise?: boolean;
+  personnalise?: string; // Fixed syntax: semicolon removed, proper object structure
+}
+
+export interface Reservation {
+  id?: number;
+  nombrePersonnes: number;
+  clientName: string;
+  clientEmail: string;
+  salle: Salle;
+  creneau: Creneau;
+  dateReservation: string;
+  status: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
+  paiementStatus: 'EN_ATTENTE' | 'PAYEE' | 'ANNULE';
 }
 
 @Component({
@@ -32,237 +43,268 @@ interface Creneau {
 })
 export class ReservationComponent implements OnInit {
   salles: Salle[] = [];
-  selectedSalle: number | null = null;
-  selectedCreneau: Creneau | null = null;
+  creneaux: Creneau[] = [];
+  selectedSalle: Salle | null = null;
+  selectedCreneau: number | null = null;
+  creneauPersonnalise: { debut: string; fin: string } = { debut: '', fin: '' };
+  useCustomCreneau: boolean = false;
   nombrePersonnes: number = 1;
-
-  creneauPersonnalise: any = {
-    debut: '',
-    fin: ''
-  };
-
-  showPersonnalise = true;
-  isLoading = false;
-  showErrorMessage = false;
-  showConfirmation = false;
-  errorText = '';
-
+  isLoading: boolean = false;
+  showErrorMessage: boolean = false;
+  showConfirmation: boolean = false;
+  errorText: string = '';
   currentUser: User | null = null;
   private apiUrl = 'http://localhost:9090';
 
   constructor(
-    private reservationService: ReservationService,
-    private authService: AuthService,
     private http: HttpClient,
-    private router: Router
+    private authService: AuthService,
+    private router: Router,
+    private datePipe: DatePipe
   ) {}
 
   ngOnInit(): void {
     this.currentUser = this.authService.getCurrentUser();
-
     if (!this.authService.isAuthenticated() || !this.currentUser) {
-      this.showErrorMessage = true;
-      this.errorText = "Vous devez être connecté pour effectuer une réservation.";
-      setTimeout(() => {
-        this.router.navigate(['/login']);
-      }, 3000);
+      this.showError('Vous devez être connecté pour effectuer une réservation.');
+      setTimeout(() => this.router.navigate(['/login']), 3000);
       return;
     }
-
     this.loadSalles();
   }
 
   loadSalles(): void {
     this.isLoading = true;
+    const headers = this.authService.getAuthHeaders();
+    if (!headers || !headers.get('Authorization')) {
+      this.showError('Session expirée. Veuillez vous reconnecter.');
+      this.authService.logout();
+      setTimeout(() => this.router.navigate(['/login']), 3000);
+      this.isLoading = false;
+      return;
+    }
 
-    // Plus besoin d'en-têtes d'authentification pour GET /salles
-    // Car votre SecurityConfig permet l'accès public à GET /salles/**
-    this.http.get<Salle[]>(`${this.apiUrl}/salles`)
-      .subscribe({
-        next: (data) => {
-          this.salles = data;
-          this.isLoading = false;
-        },
-        error: (err) => {
-          console.error('Erreur chargement salles:', err);
-          this.isLoading = false;
-          this.showErrorMessage = true;
-          this.errorText = 'Erreur lors du chargement des salles. Veuillez réessayer.';
+    this.http.get<Salle[]>(`${this.apiUrl}/salles`, { headers }).subscribe({
+      next: (data) => {
+        this.salles = data.filter(s => s.status === 'DISPONIBLE');
+        this.isLoading = false;
+      },
+      error: (err) => {
+        console.error('Erreur chargement salles:', err);
+        this.isLoading = false;
+        if (err.status === 401 || err.status === 403) {
+          this.showError('Session expirée. Veuillez vous reconnecter.');
+          this.authService.logout();
+          setTimeout(() => this.router.navigate(['/login']), 3000);
+        } else {
+          this.showError('Erreur lors du chargement des salles: ' + (err.error?.message || 'Vérifiez la connexion au serveur.'));
         }
-      });
+      }
+    });
+  }
+
+  loadCreneauxForSalle(): void {
+    if (!this.selectedSalle) {
+      this.creneaux = [];
+      return;
+    }
+    this.isLoading = true;
+    const headers = this.authService.getAuthHeaders();
+    if (!headers || !headers.get('Authorization')) {
+      this.showError('Session expirée. Veuillez vous reconnecter.');
+      this.authService.logout();
+      setTimeout(() => this.router.navigate(['/login']), 3000);
+      this.isLoading = false;
+      return;
+    }
+
+    this.http.get<Creneau[]>(`${this.apiUrl}/creneaux/disponibles`, { headers }).subscribe({
+      next: (data) => {
+        this.creneaux = data
+          .filter(c => c.salle.id === this.selectedSalle!.id)
+          .map(c => ({ ...c, personnalise: c.personnalise || '' }));
+        this.isLoading = false;
+      },
+      error: (err) => {
+        console.error('Erreur chargement créneaux:', err);
+        this.isLoading = false;
+        this.showError('Erreur lors du chargement des créneaux disponibles.');
+      }
+    });
+  }
+
+  toggleCreneauMode(useCustom: boolean): void {
+    this.useCustomCreneau = useCustom;
+    this.selectedCreneau = null;
+    this.creneauPersonnalise = { debut: '', fin: '' };
+    this.showErrorMessage = false;
   }
 
   onSalleChange(): void {
     this.selectedCreneau = null;
     this.creneauPersonnalise = { debut: '', fin: '' };
-
-    const selectedSalle = this.salles.find(s => s.id === this.selectedSalle);
-    if (selectedSalle && this.nombrePersonnes > selectedSalle.capacite) {
-      this.nombrePersonnes = selectedSalle.capacite;
-      this.showErrorMessage = true;
-      this.errorText = `Le nombre de personnes a été ajusté à la capacité maximale de la salle (${selectedSalle.capacite}).`;
+    this.nombrePersonnes = 1;
+    this.showErrorMessage = false;
+    this.showConfirmation = false;
+    if (this.selectedSalle) {
+      if (this.nombrePersonnes > this.selectedSalle.capacite) {
+        this.nombrePersonnes = this.selectedSalle.capacite;
+        this.showError(`Le nombre de personnes a été ajusté à la capacité maximale de la salle (${this.selectedSalle.capacite}).`);
+      }
+      this.loadCreneauxForSalle();
+    } else {
+      this.creneaux = [];
     }
   }
 
   onNombrePersonnesChange(): void {
-    if (this.selectedSalle) {
-      const selectedSalle = this.salles.find(s => s.id === this.selectedSalle);
-      if (selectedSalle && this.nombrePersonnes > selectedSalle.capacite) {
-        this.showErrorMessage = true;
-        this.errorText = `La capacité maximale de cette salle est de ${selectedSalle.capacite} personnes.`;
-      } else {
-        this.showErrorMessage = false;
-      }
+    if (this.selectedSalle && this.nombrePersonnes > this.selectedSalle.capacite) {
+      this.showError(`La capacité maximale de cette salle est de ${this.selectedSalle.capacite} personnes.`);
+    } else {
+      this.showErrorMessage = false;
     }
   }
 
   onCreneauChange(): void {
-    if (this.creneauPersonnalise.debut && this.creneauPersonnalise.fin) {
+    if (this.useCustomCreneau && this.creneauPersonnalise.debut && this.creneauPersonnalise.fin) {
       const debut = new Date(this.creneauPersonnalise.debut);
       const fin = new Date(this.creneauPersonnalise.fin);
-
       if (fin <= debut) {
-        this.showErrorMessage = true;
-        this.errorText = "L'heure de fin doit être après l'heure de début.";
+        this.showError('La date de fin doit être postérieure à la date de début.');
       } else {
         this.showErrorMessage = false;
+      }
+    } else if (!this.useCustomCreneau && this.selectedCreneau) {
+      const creneau = this.creneaux.find(c => c.id === this.selectedCreneau);
+      if (creneau) {
+        const debut = new Date(creneau.debut);
+        const fin = new Date(creneau.fin);
+        if (fin <= debut) {
+          this.showError('L’heure de fin doit être après l’heure de début.');
+        } else {
+          this.showErrorMessage = false;
+        }
       }
     }
   }
 
   getSelectedSalleName(): string {
-    const salle = this.salles.find(s => s.id === this.selectedSalle);
-    return salle ? salle.nom : '';
+    return this.selectedSalle?.nom || '';
   }
 
   getSelectedSalleCapacite(): number {
-    const salle = this.salles.find(s => s.id === this.selectedSalle);
-    return salle ? salle.capacite : 0;
+    return this.selectedSalle?.capacite || 0;
   }
 
   getSelectedSallePrix(): number {
-    const salle = this.salles.find(s => s.id === this.selectedSalle);
-    return salle ? salle.prix : 0;
+    return this.selectedSalle?.prix || 0;
+  }
+
+  getSelectedCreneau(): Creneau | null {
+    return this.selectedCreneau ? this.creneaux.find(c => c.id === this.selectedCreneau) || null : null;
+  }
+
+  getTodayDate(): string {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  formatDisplayDate(dateString: string | undefined): string {
+    if (!dateString) return '';
+    try {
+      return this.datePipe.transform(new Date(dateString), 'dd/MM/yyyy HH:mm') || '';
+    } catch (error) {
+      return 'Erreur de format';
+    }
   }
 
   canReserve(): boolean {
-    return !!this.selectedSalle &&
-      !!this.creneauPersonnalise.debut &&
-      !!this.creneauPersonnalise.fin &&
-      this.nombrePersonnes > 0 &&
-      this.nombrePersonnes <= this.getSelectedSalleCapacite() &&
-      this.authService.isAuthenticated() &&
-      !this.showErrorMessage;
+    if (!this.selectedSalle || this.nombrePersonnes < 1 || this.nombrePersonnes > this.getSelectedSalleCapacite()) {
+      return false;
+    }
+    if (this.useCustomCreneau) {
+      if (!this.creneauPersonnalise.debut || !this.creneauPersonnalise.fin) return false;
+      const debut = new Date(this.creneauPersonnalise.debut);
+      const fin = new Date(this.creneauPersonnalise.fin);
+      return debut < fin && !this.showErrorMessage;
+    }
+    return !!this.selectedCreneau && !this.showErrorMessage;
   }
 
   reserver(): void {
-    if (!this.canReserve()) {
-      this.showErrorMessage = true;
-      this.errorText = "Veuillez compléter tous les champs obligatoires correctement.";
+    if (!this.canReserve() || !this.currentUser) {
+      this.showError('Veuillez sélectionner une salle, un créneau valide et un nombre de personnes.');
       return;
     }
 
     this.isLoading = true;
-    this.showErrorMessage = false;
-
-    // Structure correcte attendue par le backend Spring
-    const request = {
-      salle: {
-        id: this.selectedSalle
-      },
-      creneau: {
-        id: null, // ou laissez-le undefined si non requis
-        debut: this.creneauPersonnalise.debut,
-        fin: this.creneauPersonnalise.fin
-      },
-      nombrePersonnes: this.nombrePersonnes,
-      clientName: this.currentUser?.username, // Ajoutez ces champs si requis
-      clientEmail: this.currentUser?.email,   // par le backend
-      status: 'PENDING'
-    };
-
-    const token = this.authService.getToken();
-    if (!token) {
-      this.handleAuthError();
+    const headers = this.authService.getAuthHeaders();
+    if (!headers || !headers.get('Authorization')) {
+      this.showError('Session expirée. Veuillez vous reconnecter.');
+      this.authService.logout();
+      setTimeout(() => this.router.navigate(['/login']), 3000);
+      this.isLoading = false;
       return;
     }
 
-    const headers = new HttpHeaders({
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    });
+    const reservationPayload = {
+      nombrePersonnes: this.nombrePersonnes,
+      salle: { id: this.selectedSalle!.id },
+      clientName: this.currentUser.username,
+      clientEmail: this.currentUser.email
+    };
 
-    console.log('Requête envoyée:', request); // Debug
+    if (this.useCustomCreneau) {
+      const creneauPayload = {
+        debut: new Date(this.creneauPersonnalise.debut).toISOString(),
+        fin: new Date(this.creneauPersonnalise.fin).toISOString(),
+        salle: { id: this.selectedSalle!.id },
+        personnalise: ''
+      };
 
-    this.http.post<any>(`${this.apiUrl}/reservations`, request, { headers })
-      .subscribe({
-        next: (response) => {
-          this.isLoading = false;
-          this.showConfirmation = true;
-          this.showErrorMessage = false;
-          this.selectedCreneau = {
-            id: response.creneau?.id,
-            debut: response.creneau?.debut,
-            fin: response.creneau?.fin,
-            salle: response.salle,
-            personnalise: true
-          };
+      this.http.post<Creneau>(`${this.apiUrl}/creneaux`, creneauPayload, { headers }).subscribe({
+        next: (creneau) => {
+          this.createReservation({ ...reservationPayload, creneau: { id: creneau.id } }, headers);
         },
         error: (err) => {
           this.isLoading = false;
-          this.showErrorMessage = true;
-
-          console.error('Détails de l\'erreur:', err);
-
-          if (err.status === 400) {
-            this.errorText = err.error?.message || 'Données invalides. Vérifiez les informations saisies.';
-          } else if (err.status === 403) {
-            this.errorText = "Accès refusé. Contactez l'administrateur.";
-          } else if (err.status === 401) {
-            this.handleAuthError();
-          } else if (err.error && err.error.message) {
-            this.errorText = err.error.message;
-          } else {
-            this.errorText = 'Erreur lors de la création de la réservation';
-          }
-
-          console.error('Erreur réservation:', err);
+          this.showError('Erreur lors de la création du créneau: ' + (err.error?.message || 'Vérifiez les données saisies.'));
         }
       });
+    } else {
+      this.createReservation({ ...reservationPayload, creneau: { id: this.selectedCreneau! } }, headers);
+    }
+  }
+
+  private createReservation(payload: any, headers: HttpHeaders): void {
+    this.http.post<Reservation>(`${this.apiUrl}/reservations`, payload, { headers }).subscribe({
+      next: () => {
+        this.isLoading = false;
+        this.showConfirmation = true;
+        this.showErrorMessage = false;
+        alert('Réservation créée avec succès.');
+        this.resetForm();
+      },
+      error: (err) => {
+        this.isLoading = false;
+        this.showError('Erreur lors de la création de la réservation: ' + (err.error?.message || 'Vérifiez les données saisies.'));
+      }
+    });
   }
 
   resetForm(): void {
     this.selectedSalle = null;
     this.selectedCreneau = null;
+    this.creneauPersonnalise = { debut: '', fin: '' };
     this.nombrePersonnes = 1;
+    this.useCustomCreneau = false;
+    this.creneaux = [];
     this.showConfirmation = false;
     this.showErrorMessage = false;
-    this.creneauPersonnalise = { debut: '', fin: '' };
-  }
-
-  getTodayDate(): string {
-    return new Date().toISOString().split('T')[0];
-  }
-
-  formatDisplayDate(dateString: string | undefined): string {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-
-    return `${day}/${month}/${year} à ${hours}:${minutes}`;
-  }
-
-  private handleAuthError(): void {
     this.isLoading = false;
+  }
+
+  private showError(message: string): void {
     this.showErrorMessage = true;
-    this.errorText = "Session expirée. Veuillez vous reconnecter.";
-    this.authService.logout();
-    setTimeout(() => {
-      this.router.navigate(['/login']);
-    }, 3000);
+    this.errorText = message;
   }
 }

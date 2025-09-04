@@ -142,7 +142,7 @@
   display: flex;
   gap: 20px;
   flex-wrap: wrap;
-  align-items: end;
+  align-items: flex-end;
 }
 
 .form-group {
@@ -164,18 +164,12 @@
   border-color: #667eea;
 }
 
-.submit-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  padding: 12px 25px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: transform 0.3s ease;
+.form-input.ng-invalid.ng-touched {
+  border-color: #dc3545;
 }
 
-.submit-btn:hover {
-  transform: translateY(-2px);
+.form-input.ng-valid.ng-touched {
+  border-color: #28a745;
 }
 
 /* Status badges */
@@ -184,6 +178,36 @@
   border-radius: 20px;
   font-size: 12px;
   font-weight: 500;
+}
+
+.status-badge.status-paye {
+  background-color: #28a745;
+  color: white;
+}
+
+.status-badge.status-en-attente {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+.status-badge.status-annule {
+  background-color: #dc3545;
+  color: white;
+}
+
+.status-badge.status-available {
+  background-color: #28a745;
+  color: white;
+}
+
+.status-badge.status-unavailable {
+  background-color: #dc3545;
+  color: white;
+}
+
+.status-badge.status-maintenance {
+  background-color: #6c757d;
+  color: white;
 }
 
 .status-pending {
@@ -201,161 +225,16 @@
   color: #721c24;
 }
 
+.status-unknown {
+  background: #f0f0f0;
+  color: #666;
+}
+
 /* Buttons */
-.action-btn {
-  padding: 8px 15px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.delete-btn {
-  background: #dc3545;
-  color: white;
-}
-
-.delete-btn:hover {
-  background: #c82333;
-}
-
-/* Lists */
-.creneaux-list, .salles-list {
-  display: grid;
-  gap: 20px;
-}
-
-.creneau-item, .salle-item {
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  display: flex;
-  justify-content: space-between;
-
-  align-items: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.creneau-info, .salle-info {
-  flex: 1;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .form-row {
-    flex-direction: column;
-  }
-
-  .nav-buttons {
-    flex-direction: column;
-  }
-
-  .stats-container {
-    grid-template-columns: 1fr;
-  }
-}.status-unknown {
-   background: #f0f0f0;
-   color: #666;
- }
-/* Styles supplémentaires pour les boutons d'action */
-.action-buttons {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.action-btn {
-  padding: 8px 12px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 14px;
-}
-
-.edit-btn {
-  background: #ffc107;
-  color: #000;
-}
-
-.edit-btn:hover {
-  background: #e0a800;
-}
-
-.delete-btn {
-  background: #dc3545;
-  color: white;
-}
-
-.delete-btn:hover {
-  background: #c82333;
-}
-
-.cancel-btn {
-  background: #6c757d;
-  color: white;
-  padding: 8px 15px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-left: 10px;
-}
-
-.cancel-btn:hover {
-  background: #5a6268;
-}
-
-/* Responsive pour les boutons d'action */
-@media (max-width: 768px) {
-  .action-buttons {
-    flex-direction: column;
-  }
-
-  .action-btn {
-    width: 100%;
-    justify-content: center;
-  }
-}/* Styles pour la section paiements */
-.payment-section {
-  margin-bottom: 30px;
-  padding: 20px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-}
-
-.payment-section h3 {
-  color: #4b6cb7;
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-/* Styles pour les badges de statut de paiement */
-.status-badge.status-paye {
-  background-color: #28a745;
-  color: white;
-}
-
-.status-badge.status-en-attente {
-  background-color: #ffc107;
-  color: #212529;
-}
-
-.status-badge.status-annule {
-  background-color: #dc3545;
-  color: white;
-}
-
-/* Styles pour les boutons d'action */
 .action-buttons {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .action-btn {
@@ -379,13 +258,77 @@
   background-color: #218838;
 }
 
+.action-btn.edit-btn {
+  background: #ffc107;
+  color: #000;
+}
+
+.action-btn.edit-btn:hover {
+  background: #e0a800;
+}
+
 .action-btn.delete-btn {
-  background-color: #dc3545;
+  background: #dc3545;
   color: white;
 }
 
 .action-btn.delete-btn:hover {
-  background-color: #c82333;
+  background: #c82333;
+}
+
+.cancel-btn {
+  background: #6c757d;
+  color: white;
+  padding: 8px 15px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-left: 10px;
+}
+
+.cancel-btn:hover {
+  background: #5a6268;
+}
+
+.submit-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 12px 25px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.submit-btn:hover {
+  transform: translateY(-2px);
+}
+
+.submit-btn:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Lists */
+.creneaux-list, .salles-list {
+  display: grid;
+  gap: 20px;
+}
+
+.creneau-item, .salle-item {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.creneau-info, .salle-info {
+  flex: 1;
 }
 
 /* Message pour aucune donnée */
@@ -394,4 +337,57 @@
   padding: 20px;
   color: #6c757d;
   font-style: italic;
+}
+
+/* Styles pour les sections */
+.section-header {
+  margin-bottom: 20px;
+}
+
+.section-header h2 {
+  color: #4b6cb7;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Styles pour la section paiements */
+.payment-section {
+  margin-bottom: 30px;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.payment-section h3 {
+  color: #4b6cb7;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .form-row {
+    flex-direction: column;
+  }
+
+  .nav-buttons {
+    flex-direction: column;
+  }
+
+  .stats-container {
+    grid-template-columns: 1fr;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+  }
+
+  .action-btn {
+    width: 100%;
+    justify-content: center;
+  }
 }
