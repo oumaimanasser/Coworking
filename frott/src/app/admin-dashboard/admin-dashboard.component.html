@@ -23,6 +23,9 @@
       <button class="nav-btn" [class.active]="currentPage === 'paiements'" (click)="showPage('paiements')">
         <i class="fas fa-credit-card"></i> Paiements
       </button>
+      <button class="nav-btn" [class.active]="currentPage === 'users'" (click)="showPage('users')">
+        <i class="fas fa-users"></i> Utilisateurs
+      </button>
       <button class="nav-btn" (click)="logout()">
         <i class="fas fa-sign-out-alt"></i> Déconnexion
       </button>
@@ -34,13 +37,23 @@
     <h2><i class="fas fa-user-lock"></i> Connexion Admin</h2>
     <form [formGroup]="loginForm" (ngSubmit)="login()" class="form-container">
       <div class="form-group">
-        <label for="email">Email</label>
-        <input id="email" type="email" formControlName="email" class="form-input" placeholder="Email" />
+        <label for="login-email">Email</label>
+        <input id="login-email" type="email" formControlName="email" class="form-input" placeholder="Email" />
       </div>
       <div class="form-group">
-        <label for="password">Mot de passe</label>
-        <input id="password" type="password" formControlName="password" class="form-input" placeholder="Mot de passe" />
+        <label for="login-password">Mot de passe</label>
+        <input id="login-password" type="password" formControlName="password" class="form-input" placeholder="Mot de passe" />
       </div>
+      <div class="form-group">
+        <label for="login-resetEmail">Email pour réinitialisation</label>
+        <input id="login-resetEmail" [(ngModel)]="resetEmail" class="form-input" placeholder="Entrez votre email" />
+      </div>
+      <div class="form-group">
+        <label for="login-newPassword">Nouveau mot de passe</label>
+        <input id="login-newPassword" [(ngModel)]="newPassword" type="password" class="form-input" placeholder="Nouveau mot de passe" />
+      </div>
+      <button type="button" (click)="resetPasswordRequest()">Demander réinitialisation</button>
+      <button type="button" (click)="submitResetPassword()" [disabled]="!resetToken || !newPassword">Réinitialiser mot de passe</button>
       <button type="submit" class="submit-btn" [disabled]="!loginForm.valid">Se connecter</button>
     </form>
   </div>
@@ -168,16 +181,16 @@
     <form [formGroup]="newCreneauForm" (ngSubmit)="addCreneau()" class="form-container">
       <div class="form-row">
         <div class="form-group">
-          <label for="debut">Date et heure de début</label>
-          <input id="debut" type="datetime-local" formControlName="debut" class="form-input" />
+          <label for="creneaux-debut">Date et heure de début</label>
+          <input id="creneaux-debut" type="datetime-local" formControlName="debut" class="form-input" />
         </div>
         <div class="form-group">
-          <label for="fin">Date et heure de fin</label>
-          <input id="fin" type="datetime-local" formControlName="fin" class="form-input" />
+          <label for="creneaux-fin">Date et heure de fin</label>
+          <input id="creneaux-fin" type="datetime-local" formControlName="fin" class="form-input" />
         </div>
         <div class="form-group">
-          <label for="salleId">Salle</label>
-          <select id="salleId" formControlName="salleId" class="form-input">
+          <label for="creneaux-salleId">Salle</label>
+          <select id="creneaux-salleId" formControlName="salleId" class="form-input">
             <option value="">Sélectionnez une salle</option>
             <option *ngFor="let salle of salles" [value]="salle.id">{{ salle.nom }}</option>
           </select>
@@ -206,16 +219,16 @@
       <form [formGroup]="editCreneauForm" (ngSubmit)="updateCreneau()">
         <div class="form-row">
           <div class="form-group">
-            <label for="editDebut">Date et heure de début</label>
-            <input id="editDebut" type="datetime-local" formControlName="debut" class="form-input" />
+            <label for="creneaux-editDebut">Date et heure de début</label>
+            <input id="creneaux-editDebut" type="datetime-local" formControlName="debut" class="form-input" />
           </div>
           <div class="form-group">
-            <label for="editFin">Date et heure de fin</label>
-            <input id="editFin" type="datetime-local" formControlName="fin" class="form-input" />
+            <label for="creneaux-editFin">Date et heure de fin</label>
+            <input id="creneaux-editFin" type="datetime-local" formControlName="fin" class="form-input" />
           </div>
           <div class="form-group">
-            <label for="editSalleId">Salle</label>
-            <select id="editSalleId" formControlName="salleId" class="form-input">
+            <label for="creneaux-editSalleId">Salle</label>
+            <select id="creneaux-editSalleId" formControlName="salleId" class="form-input">
               <option value="">Sélectionnez une salle</option>
               <option *ngFor="let salle of salles" [value]="salle.id">{{ salle.nom }}</option>
             </select>
@@ -237,20 +250,20 @@
     <form [formGroup]="newSalleForm" (ngSubmit)="addSalle()" class="form-container">
       <div class="form-row">
         <div class="form-group">
-          <label for="nom">Nom</label>
-          <input id="nom" formControlName="nom" class="form-input" placeholder="Nom de la salle" />
+          <label for="salles-nom">Nom</label>
+          <input id="salles-nom" formControlName="nom" class="form-input" placeholder="Nom de la salle" />
         </div>
         <div class="form-group">
-          <label for="capacite">Capacité</label>
-          <input id="capacite" type="number" formControlName="capacite" class="form-input" min="1" />
+          <label for="salles-capacite">Capacité</label>
+          <input id="salles-capacite" type="number" formControlName="capacite" class="form-input" min="1" />
         </div>
         <div class="form-group">
-          <label for="prix">Prix (€)</label>
-          <input id="prix" type="number" formControlName="prix" class="form-input" min="0" step="0.01" />
+          <label for="salles-prix">Prix (€)</label>
+          <input id="salles-prix" type="number" formControlName="prix" class="form-input" min="0" step="0.01" />
         </div>
         <div class="form-group">
-          <label for="status">Statut</label>
-          <select id="status" formControlName="status" class="form-input">
+          <label for="salles-status">Statut</label>
+          <select id="salles-status" formControlName="status" class="form-input">
             <option value="DISPONIBLE">Disponible</option>
             <option value="INDISPONIBLE">Indisponible</option>
             <option value="MAINTENANCE">Maintenance</option>
@@ -258,8 +271,8 @@
         </div>
       </div>
       <div class="form-group">
-        <label for="image">Image</label>
-        <input id="image" type="file" (change)="onFileSelected($event)" accept="image/*" class="form-input" />
+        <label for="salles-image">Image</label>
+        <input id="salles-image" type="file" (change)="onFileSelected($event)" accept="image/*" class="form-input" />
       </div>
       <div class="action-buttons">
         <button type="submit" class="submit-btn" [disabled]="!newSalleForm.valid">Ajouter Salle</button>
@@ -286,20 +299,20 @@
       <form [formGroup]="editSalleForm" (ngSubmit)="updateSalle()">
         <div class="form-row">
           <div class="form-group">
-            <label for="editNom">Nom</label>
-            <input id="editNom" formControlName="nom" class="form-input" placeholder="Nom de la salle" />
+            <label for="salles-editNom">Nom</label>
+            <input id="salles-editNom" formControlName="nom" class="form-input" placeholder="Nom de la salle" />
           </div>
           <div class="form-group">
-            <label for="editCapacite">Capacité</label>
-            <input id="editCapacite" type="number" formControlName="capacite" class="form-input" min="1" />
+            <label for="salles-editCapacite">Capacité</label>
+            <input id="salles-editCapacite" type="number" formControlName="capacite" class="form-input" min="1" />
           </div>
           <div class="form-group">
-            <label for="editPrix">Prix (€)</label>
-            <input id="editPrix" type="number" formControlName="prix" class="form-input" min="0" step="0.01" />
+            <label for="salles-editPrix">Prix (€)</label>
+            <input id="salles-editPrix" type="number" formControlName="prix" class="form-input" min="0" step="0.01" />
           </div>
           <div class="form-group">
-            <label for="editStatus">Statut</label>
-            <select id="editStatus" formControlName="status" class="form-input">
+            <label for="salles-editStatus">Statut</label>
+            <select id="salles-editStatus" formControlName="status" class="form-input">
               <option value="DISPONIBLE">Disponible</option>
               <option value="INDISPONIBLE">Indisponible</option>
               <option value="MAINTENANCE">Maintenance</option>
@@ -307,8 +320,8 @@
           </div>
         </div>
         <div class="form-group">
-          <label for="editImage">Nouvelle Image</label>
-          <input id="editImage" type="file" (change)="onFileSelected($event)" accept="image/*" class="form-input" />
+          <label for="salles-editImage">Nouvelle Image</label>
+          <input id="salles-editImage" type="file" (change)="onFileSelected($event)" accept="image/*" class="form-input" />
         </div>
         <div class="action-buttons">
           <button type="submit" class="submit-btn" [disabled]="!editSalleForm.valid">Mettre à jour</button>
@@ -405,6 +418,69 @@
           </tbody>
         </table>
       </div>
+    </div>
+  </div>
+
+  <!-- ===== USERS PAGE ===== -->
+  <div *ngIf="currentPage === 'users'" class="page-content">
+    <div class="section-header">
+      <h2><i class="fas fa-users"></i> Gestion des Utilisateurs</h2>
+    </div>
+    <form [formGroup]="newUserForm" (ngSubmit)="addUser()" class="form-container">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="users-username">Nom d'utilisateur</label>
+          <input id="users-username" formControlName="username" class="form-input" placeholder="Nom d'utilisateur" />
+        </div>
+        <div class="form-group">
+          <label for="users-email">Email</label>
+          <input id="users-email" type="email" formControlName="email" class="form-input" placeholder="Email" />
+        </div>
+        <div class="form-group">
+          <label for="users-password">Mot de passe</label>
+          <input id="users-password" type="password" formControlName="password" class="form-input" placeholder="Mot de passe" />
+        </div>
+      </div>
+      <div class="action-buttons">
+        <button type="submit" class="submit-btn" [disabled]="!newUserForm.valid">Ajouter Utilisateur</button>
+      </div>
+    </form>
+    <div class="users-list">
+      <div class="user-item" *ngFor="let u of users">
+        <div class="user-info">
+          <p><strong>Nom:</strong> {{ u.username }}</p>
+          <p><strong>Email:</strong> {{ u.email }}</p>
+          <p><strong>Rôles:</strong> {{ getUserRolesDisplay(u) }}</p>
+        </div>
+        <div class="action-buttons">
+          <button class="action-btn edit-btn" (click)="editUser(u)">Modifier</button>
+          <button class="action-btn delete-btn" (click)="deleteUser(u.id)">Supprimer</button>
+        </div>
+      </div>
+      <div *ngIf="users.length === 0" class="no-data">Aucun utilisateur</div>
+    </div>
+    <div *ngIf="editingUser" class="form-container">
+      <h3>Modifier Utilisateur</h3>
+      <form [formGroup]="editUserForm" (ngSubmit)="updateUser()">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="users-editUsername">Nom d'utilisateur</label>
+            <input id="users-editUsername" formControlName="username" class="form-input" placeholder="Nom d'utilisateur" />
+          </div>
+          <div class="form-group">
+            <label for="users-editEmail">Email</label>
+            <input id="users-editEmail" type="email" formControlName="email" class="form-input" placeholder="Email" />
+          </div>
+          <div class="form-group">
+            <label for="users-editPassword">Nouveau mot de passe (optionnel)</label>
+            <input id="users-editPassword" type="password" formControlName="password" class="form-input" placeholder="Nouveau mot de passe" />
+          </div>
+        </div>
+        <div class="action-buttons">
+          <button type="submit" class="submit-btn" [disabled]="!editUserForm.valid">Mettre à jour</button>
+          <button type="button" class="cancel-btn" (click)="cancelEdit()">Annuler</button>
+        </div>
+      </form>
     </div>
   </div>
 </div>

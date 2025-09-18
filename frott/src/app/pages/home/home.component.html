@@ -1,15 +1,30 @@
+<!-- Progress indicator -->
+<div class="scroll-indicator" #scrollIndicator></div>
+
 <!-- Header -->
-<header class="header">
+<header class="header" #header>
   <div class="container">
     <div class="nav-wrapper">
       <div class="logo">
         <h1>WH<span class="logo-o">O</span>RKS</h1>
       </div>
       <nav class="nav">
-        <a routerLink="/reservation" class="btn-primary">RÉSERVER UNE SALLE</a>
-        <a routerLink="/login" class="btn-login">SE CONNECTER</a>
-        <a routerLink="/register" class="btn-register">S'INSCRIRE</a>
-        <a routerLink="/home" class="btn-secondary" (click)="scrollToContact()">CONTACT</a>
+        <a routerLink="/reservation" class="btn-primary">
+          <i class="fas fa-calendar-alt"></i>
+          <span>RÉSERVER UNE SALLE</span>
+        </a>
+        <a routerLink="/login" class="btn-login">
+          <i class="fas fa-sign-in-alt"></i>
+          <span>SE CONNECTER</span>
+        </a>
+        <a routerLink="/register" class="btn-register">
+          <i class="fas fa-user-plus"></i>
+          <span>S'INSCRIRE</span>
+        </a>
+        <a routerLink="/home" class="btn-secondary" (click)="scrollToContact()">
+          <i class="fas fa-envelope"></i>
+          <span>CONTACT</span>
+        </a>
       </nav>
     </div>
   </div>
@@ -17,70 +32,349 @@
 
 <!-- Hero Section -->
 <section class="hero-section">
+  <div class="hero-background"></div>
+  <div class="hero-particles">
+    <div class="particle" *ngFor="let particle of particles; let i = index" 
+         [style.left.%]="particle.x" 
+         [style.animation-delay.s]="particle.delay">
+    </div>
+  </div>
   <div class="container">
     <div class="hero-content">
-      <div class="hero-text">
-        <h1 class="hero-title">
-          COWORKINGS FLEXIBLES ET<br />INSPIRANTS
-        </h1>
-        <p class="hero-subtitle">
-          Des espaces de travail adaptés à votre équipe à Rennes, Nantes et Bordeaux.
-        </p>
-        <button class="discover-btn" (click)="goToReservation()">Réserver Maintenant</button>
+      <div class="hero-badge" [@slideInUp]>
+        <i class="fas fa-star"></i>
+        <span>Espaces Premium</span>
+      </div>
+      <h1 class="hero-title" [@slideInUp]>
+        COWORKINGS FLEXIBLES ET<br />
+        <span class="gradient-text">INSPIRANTS</span>
+      </h1>
+      <p class="hero-subtitle" [@slideInUp]>
+        Des espaces de travail adaptés à votre équipe à Rennes, Nantes et Bordeaux.
+        <br>
+        <strong>+ de 50 salles disponibles</strong> dans 3 villes
+      </p>
+      <div class="hero-buttons" [@slideInUp]>
+        <button class="discover-btn primary" (click)="goToReservation()">
+          <i class="fas fa-rocket"></i>
+          <span>Réserver Maintenant</span>
+        </button>
+        <button class="discover-btn secondary" (click)="scrollToSpaces()">
+          <i class="fas fa-play"></i>
+          <span>Voir nos espaces</span>
+        </button>
+      </div>
+      
+      <!-- Stats -->
+      <div class="hero-stats" [@slideInUp]>
+        <div class="stat">
+          <div class="stat-number">50+</div>
+          <div class="stat-label">Salles</div>
+        </div>
+        <div class="stat">
+          <div class="stat-number">3</div>
+          <div class="stat-label">Villes</div>
+        </div>
+        <div class="stat">
+          <div class="stat-number">24/7</div>
+          <div class="stat-label">Accès</div>
+        </div>
       </div>
     </div>
   </div>
 </section>
 
 <!-- Featured Spaces Section -->
-<section class="featured-spaces" *ngIf="!isLoading; else loading">
+<section class="featured-spaces" #featuredSpaces *ngIf="!isLoading; else loading">
   <div class="container">
-    <h2 class="section-title">Nos Salles Disponibles</h2>
-    <div class="space-grid" *ngIf="salles.length > 0; else noSalles">
-      <div class="space-card" *ngFor="let salle of salles">
-        <img [src]="getImageUrl(salle.imagePath)" (error)="onImageError($event)" alt="{{ salle.nom }}" class="space-image" />
+    <div class="section-header" [@fadeInUp]>
+      <h2 class="section-title">
+        <i class="fas fa-star"></i>
+        Nos Salles Disponibles
+      </h2>
+      <p class="section-subtitle">
+        Découvrez nos espaces de travail exceptionnels, conçus pour stimuler votre créativité et votre productivité
+      </p>
+    </div>
+    
+    <!-- Filtres -->
+    <div class="filter-tabs" [@fadeInUp]>
+      <button class="filter-tab" 
+              [class.active]="activeFilter === 'all'" 
+              (click)="setFilter('all')">
+        <i class="fas fa-th"></i>
+        Tous
+      </button>
+      <button class="filter-tab" 
+              [class.active]="activeFilter === 'disponible'" 
+              (click)="setFilter('disponible')">
+        <i class="fas fa-check-circle"></i>
+        Disponibles
+      </button>
+      <button class="filter-tab" 
+              [class.active]="activeFilter === 'premium'" 
+              (click)="setFilter('premium')">
+        <i class="fas fa-crown"></i>
+        Premium
+      </button>
+    </div>
+
+    <div class="space-grid" *ngIf="filteredSalles.length > 0; else noSalles" [@staggerAnimation]>
+      <div class="space-card" *ngFor="let salle of filteredSalles; let i = index" 
+           [@cardAnimation] 
+           [style.animation-delay.ms]="i * 150">
+        
+        <!-- Image avec overlay -->
+        <div class="space-image-container">
+          <img *ngIf="salle && salle.nom && salle.capacite && salle.prix"
+               [src]="getImageUrl(salle.imagePath, salle.type)"
+               (error)="onImageError($event, salle.type)"
+               alt="Espace de coworking WHORKS - Salle en cours de chargement"
+               [attr.alt]="'Espace de travail ' + (salle.nom || 'Salle inconnue') + ' - Capacité ' + (salle.capacite || 'N/A') + ' personnes'"
+               title="Espace de coworking WHORKS - Cliquez pour réserver"
+               [attr.title]="'Réserver ' + (salle.nom || 'Salle inconnue') + ' - €' + (salle.prix || 'N/A') + '/heure'"
+               [attr.aria-label]="'Image de l\'espace de coworking ' + (salle.nom || 'inconnu')"
+               class="space-image"
+               loading="lazy"
+               role="img" />
+          <div class="image-overlay">
+            <div class="overlay-content">
+              <i class="fas fa-eye"></i>
+              <span>Voir plus</span>
+            </div>
+          </div>
+          
+          <!-- Badge statut -->
+          <div class="status-badge" [ngClass]="getStatusClass(salle.status)">
+            <i [class]="getStatusIcon(salle.status)"></i>
+            <span>{{ salle.status }}</span>
+          </div>
+        </div>
+        
+        <!-- Contenu de la carte -->
         <div class="space-info">
-          <h3>{{ salle.nom }}</h3>
-          <p><strong>Capacité:</strong> {{ salle.capacite }} personnes</p>
-          <p><strong>Prix:</strong> {{ salle.prix | currency:'EUR' }}</p>
-          <p><strong>Disponibilité:</strong> {{ salle.status }}</p>
-          <button class="reserve-btn" (click)="goToReservation(salle)">Réserver</button>
+          <div class="space-header">
+            <h3>{{ salle.nom }}</h3>
+            <div class="rating" role="img" [attr.aria-label]="'Note: 4.8 étoiles sur 5'">
+              <i class="fas fa-star" *ngFor="let star of [1,2,3,4,5]" [attr.aria-hidden]="true"></i>
+              <span>4.8</span>
+            </div>
+          </div>
+          
+          <!-- Détails -->
+          <div class="space-details">
+            <div class="detail-item">
+              <i class="fas fa-users" aria-hidden="true"></i>
+              <span><strong>{{ salle.capacite }}</strong> personnes</span>
+            </div>
+            <div class="detail-item">
+              <i class="fas fa-wifi" aria-hidden="true"></i>
+              <span>WiFi haut débit</span>
+            </div>
+            <div class="detail-item">
+              <i class="fas fa-coffee" aria-hidden="true"></i>
+              <span>Café inclus</span>
+            </div>
+          </div>
+          
+          <!-- Prix et CTA -->
+          <div class="space-footer">
+            <div class="price-section">
+              <div class="price">
+                <span class="currency">€</span>
+                <span class="amount">{{ salle.prix }}</span>
+                <span class="period">/heure</span>
+              </div>
+              <div class="price-note">À partir de</div>
+            </div>
+            
+            <button class="reserve-btn" 
+                    [disabled]="salle.status !== 'DISPONIBLE'"
+                    [attr.aria-label]="salle.status === 'DISPONIBLE' ? 'Réserver ' + salle.nom : 'Salle ' + salle.nom + ' indisponible'"
+                    (click)="goToReservation(salle)">
+              <i class="fas fa-calendar-check" aria-hidden="true"></i>
+              <span *ngIf="salle.status === 'DISPONIBLE'">Réserver</span>
+              <span *ngIf="salle.status !== 'DISPONIBLE'">Indisponible</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
+    
     <ng-template #noSalles>
-      <p class="no-data" *ngIf="!errorMessage">{{ errorMessage || 'Aucune salle disponible pour le moment.' }}</p>
+      <div class="no-data" [@fadeInUp]>
+        <i class="fas fa-search" aria-hidden="true"></i>
+        <h3>{{ errorMessage || 'Aucune salle disponible pour le moment.' }}</h3>
+        <p>Essayez de modifier vos critères de recherche ou revenez plus tard.</p>
+        <button class="btn-primary" (click)="loadSalles()">
+          <i class="fas fa-refresh" aria-hidden="true"></i>
+          Actualiser
+        </button>
+      </div>
     </ng-template>
   </div>
 </section>
+
 <ng-template #loading>
-  <div class="loading-container">
-    <i class="fas fa-spinner fa-spin"></i> Chargement des salles...
+  <div class="loading-container" [@fadeInUp]>
+    <div class="loading-animation">
+      <div class="spinner" role="status" aria-label="Chargement en cours"></div>
+      <div class="loading-dots" aria-hidden="true">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+    <h3>Chargement de nos espaces exceptionnels...</h3>
+    <p>Préparation de votre expérience premium</p>
   </div>
 </ng-template>
 
 <!-- Contact Section -->
-<section class="contact-section" id="contact-section">
+<section class="contact-section" id="contact-section" #contactSection>
   <div class="container">
-    <h2 class="section-title"><i class="fas fa-envelope"></i> Contactez-nous</h2>
-    <p class="section-subtitle">Nous sommes là pour vous aider. Remplissez le formulaire ci-dessous.</p>
-    <form class="contact-form" (ngSubmit)="onSubmitContact()">
-      <div class="form-row">
-        <div class="form-group">
-          <label for="contactName">Nom</label>
-          <input id="contactName" type="text" class="form-control" [(ngModel)]="contactForm.name" required />
+    <div class="section-header" [@fadeInUp]>
+      <h2 class="section-title">
+        <i class="fas fa-paper-plane" aria-hidden="true"></i>
+        Contactez-nous
+      </h2>
+      <p class="section-subtitle">
+        Une question ? Un projet spécial ? Notre équipe d'experts est là pour vous accompagner dans tous vos besoins d'espaces de travail.
+      </p>
+    </div>
+    
+    <div class="contact-content">
+      <!-- Informations de contact -->
+      <div class="contact-info" [@slideInLeft]>
+        <div class="info-card">
+          <div class="info-icon">
+            <i class="fas fa-phone" aria-hidden="true"></i>
+          </div>
+          <div class="info-content">
+            <h4>Téléphone</h4>
+            <p>+33 1 23 45 67 89</p>
+            <small>Lun-Ven 9h-18h</small>
+          </div>
         </div>
-        <div class="form-group">
-          <label for="contactEmail">Email</label>
-          <input id="contactEmail" type="email" class="form-control" [(ngModel)]="contactForm.email" required />
+        
+        <div class="info-card">
+          <div class="info-icon">
+            <i class="fas fa-envelope" aria-hidden="true"></i>
+          </div>
+          <div class="info-content">
+            <h4>Email</h4>
+            <p>contactwhorks.com</p>
+            <small>Réponse sous 2h</small>
+          </div>
+        </div>
+        
+        <div class="info-card">
+          <div class="info-icon">
+            <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
+          </div>
+          <div class="info-content">
+            <h4>Adresse</h4>
+            <p>123 Rue des Espaces</p>
+            <small>75001 Paris, France</small>
+          </div>
         </div>
       </div>
-      <div class="form-group">
-        <label for="contactMessage">Message</label>
-        <textarea id="contactMessage" class="form-control" [(ngModel)]="contactForm.message" rows="4" required></textarea>
-      </div>
-      <button type="submit" class="btn-primary" [disabled]="!contactForm.name || !contactForm.email || !contactForm.message">Envoyer</button>
-    </form>
+      
+      <!-- Formulaire -->
+      <form class="contact-form" (ngSubmit)="onSubmitContact()" [@slideInRight]>
+        <div class="form-header">
+          <h3>Envoyez-nous un message</h3>
+          <p>Nous vous répondrons dans les plus brefs délais</p>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="contactName">
+              <i class="fas fa-user" aria-hidden="true"></i>
+              Nom complet
+            </label>
+            <input id="contactName" 
+                   type="text" 
+                   class="form-control" 
+                   [(ngModel)]="contactForm.name" 
+                   name="name"
+                   placeholder="Votre nom complet" 
+                   required 
+                   aria-describedby="nameHelp" />
+          </div>
+          <div class="form-group">
+            <label for="contactEmail">
+              <i class="fas fa-envelope" aria-hidden="true"></i>
+              Adresse email
+            </label>
+            <input id="contactEmail" 
+                   type="email" 
+                   class="form-control" 
+                   [(ngModel)]="contactForm.email" 
+                   name="email"
+                   placeholder="votre@email.com" 
+                   required 
+                   aria-describedby="emailHelp" />
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="contactSubject">
+            <i class="fas fa-tag" aria-hidden="true"></i>
+            Sujet
+          </label>
+          <select id="contactSubject" 
+                  class="form-control" 
+                  [(ngModel)]="contactForm.subject" 
+                  name="subject"
+                  required
+                  aria-describedby="subjectHelp">
+            <option value="">Choisissez un sujet</option>
+            <option value="reservation">Réservation</option>
+            <option value="information">Demande d'information</option>
+            <option value="support">Support technique</option>
+            <option value="partenariat">Partenariat</option>
+            <option value="autre">Autre</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="contactMessage">
+            <i class="fas fa-comment" aria-hidden="true"></i>
+            Message
+          </label>
+          <textarea id="contactMessage" 
+                    class="form-control" 
+                    [(ngModel)]="contactForm.message" 
+                    name="message"
+                    rows="5" 
+                    placeholder="Décrivez votre projet ou posez votre question..."
+                    required
+                    aria-describedby="messageHelp"></textarea>
+        </div>
+        
+        <button type="submit" 
+                class="btn-primary submit-btn"
+                [disabled]="!contactForm.name || !contactForm.email || !contactForm.message"
+                [class.loading]="isSubmittingContact"
+                [attr.aria-label]="isSubmittingContact ? 'Envoi du message en cours' : 'Envoyer le message'">
+          <span *ngIf="!isSubmittingContact">
+            <i class="fas fa-send" aria-hidden="true"></i>
+            Envoyer le message
+          </span>
+          <span *ngIf="isSubmittingContact">
+            <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+            Envoi en cours...
+          </span>
+        </button>
+        
+        <!-- Message de succès -->
+        <div class="success-message" *ngIf="contactSuccess" [@fadeInUp] role="alert">
+          <i class="fas fa-check-circle" aria-hidden="true"></i>
+          <span>Message envoyé avec succès ! Nous vous répondrons rapidement.</span>
+        </div>
+      </form>
+    </div>
   </div>
 </section>
 
@@ -88,33 +382,112 @@
 <footer class="footer">
   <div class="container">
     <div class="footer-content">
-      <div class="footer-section">
+      <div class="footer-section company-info">
         <h4>WH<span class="logo-o">O</span>RKS</h4>
-        <p>123 Rue des Espaces, 75001 Paris, France</p>
-        <p>Email: contact&#64;whorks.com</p>
-        <p>Téléphone: +33 1 23 45 67 89</p>
+        <p class="company-description">
+          Votre partenaire pour des espaces de travail flexibles et inspirants. 
+          Depuis 2020, nous accompagnons les entreprises dans leur transformation digitale.
+        </p>
+        <div class="contact-info">
+          <div class="contact-item">
+            <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
+            <span>123 Rue des Espaces, 75001 Paris, France</span>
+          </div>
+          <div class="contact-item">
+            <i class="fas fa-envelope" aria-hidden="true"></i>
+            <span>contactwhorks.com</span>
+          </div>
+          <div class="contact-item">
+            <i class="fas fa-phone" aria-hidden="true"></i>
+            <span>+33 1 23 45 67 89</span>
+          </div>
+        </div>
       </div>
+      
       <div class="footer-section">
-        <h4>Liens Utiles</h4>
+        <h4>Nos Services</h4>
         <ul>
-          <li><a routerLink="/reservation">Réservations</a></li>
-          <li><a routerLink="/solutions-bureaux">Solutions Bureaux</a></li>
-          <li><a routerLink="/salles-reunion">Salles de Réunion</a></li>
-          <li><a routerLink="/lieux-evenements">Lieux Événements</a></li>
+          <li><a routerLink="/reservation"><i class="fas fa-calendar-alt" aria-hidden="true"></i>Réservations</a></li>
+          <li><a routerLink="/solutions-bureaux"><i class="fas fa-briefcase" aria-hidden="true"></i>Solutions Bureaux</a></li>
+          <li><a routerLink="/salles-reunion"><i class="fas fa-users" aria-hidden="true"></i>Salles de Réunion</a></li>
+          <li><a routerLink="/lieux-evenements"><i class="fas fa-star" aria-hidden="true"></i>Lieux Événements</a></li>
         </ul>
       </div>
+      
+      <div class="footer-section">
+        <h4>Support</h4>
+        <ul>
+          <li><a href="#"><i class="fas fa-question-circle" aria-hidden="true"></i>FAQ</a></li>
+          <li><a href="#"><i class="fas fa-headset" aria-hidden="true"></i>Support Client</a></li>
+          <li><a href="#"><i class="fas fa-file-alt" aria-hidden="true"></i>Conditions d'utilisation</a></li>
+          <li><a href="#"><i class="fas fa-shield-alt" aria-hidden="true"></i>Politique de confidentialité</a></li>
+        </ul>
+      </div>
+      
       <div class="footer-section">
         <h4>Suivez-nous</h4>
+        <p>Restez connecté pour nos dernières actualités et offres spéciales.</p>
         <div class="social-links">
-          <a href="https://facebook.com" target="_blank"><i class="fab fa-facebook-f"></i></a>
-          <a href="https://twitter.com" target="_blank"><i class="fab fa-twitter"></i></a>
-          <a href="https://instagram.com" target="_blank"><i class="fab fa-instagram"></i></a>
-          <a href="https://linkedin.com" target="_blank"><i class="fab fa-linkedin-in"></i></a>
+          <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" title="Suivez-nous sur Facebook" aria-label="Page Facebook de WHORKS">
+            <i class="fab fa-facebook-f" aria-hidden="true"></i>
+          </a>
+          <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" title="Suivez-nous sur Twitter" aria-label="Page Twitter de WHORKS">
+            <i class="fab fa-twitter" aria-hidden="true"></i>
+          </a>
+          <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" title="Suivez-nous sur Instagram" aria-label="Page Instagram de WHORKS">
+            <i class="fab fa-instagram" aria-hidden="true"></i>
+          </a>
+          <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" title="Suivez-nous sur LinkedIn" aria-label="Page LinkedIn de WHORKS">
+            <i class="fab fa-linkedin-in" aria-hidden="true"></i>
+          </a>
+        </div>
+        
+        <!-- Newsletter with Fixed Image -->
+        <div class="newsletter">
+          <h5>Newsletter</h5>
+          <div class="newsletter-image-container">
+            <img src="https://images.unsplash.com/photo-1516321310762-4794370e6a50?w=100&h=100&fit=crop" 
+                 alt="Newsletter subscription - Restez informé de nos dernières offres d'espaces de coworking" 
+                 title="Abonnez-vous à notre newsletter pour recevoir nos dernières offres et actualités"
+                 class="newsletter-image" 
+                 loading="lazy" />
+          </div>
+          <p>Inscrivez-vous pour recevoir nos dernières offres et actualités.</p>
+          <div class="newsletter-form">
+            <label for="newsletterEmail" class="sr-only">Adresse email pour newsletter</label>
+            <input id="newsletterEmail" 
+                   type="email" 
+                   placeholder="Votre email" 
+                   [(ngModel)]="newsletterEmail" 
+                   name="newsletterEmail"
+                   aria-describedby="newsletterHelp" />
+            <button type="submit" 
+                    (click)="onNewsletterSubmit(newsletterEmail)"
+                    aria-label="S'abonner à la newsletter">
+              <i class="fas fa-paper-plane" aria-hidden="true"></i>
+            </button>
+          </div>
+          <small id="newsletterHelp" class="sr-only">
+            Nous respectons votre vie privée et ne partageons jamais votre email
+          </small>
         </div>
       </div>
     </div>
+    
     <div class="footer-bottom">
-      <p>&copy; 2025 WH<span class="logo-o">O</span>RKS. Tous droits réservés.</p>
+      <div class="footer-bottom-content">
+        <p>&copy; 2025 WH<span class="logo-o">O</span>RKS. Tous droits réservés.</p>
+        <div class="footer-badges">
+          <span class="badge">
+            <i class="fas fa-shield-alt" aria-hidden="true"></i>
+            Sécurisé SSL
+          </span>
+          <span class="badge">
+            <i class="fas fa-award" aria-hidden="true"></i>
+            Certifié ISO
+          </span>
+        </div>
+      </div>
     </div>
   </div>
 </footer>

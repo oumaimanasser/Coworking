@@ -1,117 +1,124 @@
-<div class="reservation-container">
-  <div class="header">
-    <h1><i class="fas fa-calendar-check"></i> Réservation de Salle</h1>
+<div class="reservation-container" role="main" aria-label="Formulaire de réservation de salle">
+  <header class="header">
+    <h1><i class="fas fa-calendar-check" aria-hidden="true"></i> Réservation de Salle</h1>
     <p>Réservez en sélectionnant un créneau existant ou créez un créneau personnalisé</p>
-  </div>
+  </header>
 
-  <div class="content">
-    <div class="loading-overlay" *ngIf="isLoading">
-      <div class="loading-spinner"></div>
+  <section class="content" aria-live="polite" [attr.aria-busy]="isLoading ? 'true' : 'false'">
+    <!-- Overlay chargement -->
+    <div class="loading-overlay" *ngIf="isLoading" aria-label="Chargement en cours">
+      <div class="loading-spinner" role="status" aria-live="assertive" aria-busy="true"></div>
       <p>Traitement en cours...</p>
     </div>
 
     <!-- Sélection de la salle -->
-    <div class="form-section">
-      <h2><i class="fas fa-building"></i> Sélectionnez une salle</h2>
+    <section class="form-section" aria-labelledby="salleSelectLabel">
+      <h2><i class="fas fa-building" aria-hidden="true"></i> Sélectionnez une salle</h2>
       <div class="form-group">
-        <label for="salleSelect">Choisir une salle *</label>
-        <select id="salleSelect" class="form-input" [(ngModel)]="selectedSalle" (ngModelChange)="onSalleChange()" [disabled]="isLoading" required>
-          <option [ngValue]="null">Sélectionnez une salle</option>
-          <option *ngFor="let salle of salles" [ngValue]="salle">{{ salle.nom }} ({{ salle.capacite }} personnes) - {{ salle.prix | currency:'EUR' }}</option>
+        <label id="salleSelectLabel" for="salleSelect">Choisir une salle <span aria-hidden="true" class="required">*</span></label>
+        <select id="salleSelect" class="form-input" [(ngModel)]="selectedSalle" (ngModelChange)="onSalleChange()" [disabled]="isLoading" required aria-required="true" aria-describedby="salleHelp">
+          <option [ngValue]="null" disabled>Sélectionnez une salle</option>
+          <option *ngFor="let salle of salles" [ngValue]="salle">
+            {{ salle.nom }} ({{ salle.capacite }} personnes) - {{ salle.prix | currency:'EUR' }}
+          </option>
         </select>
+        <small id="salleHelp" class="capacity-info">Veuillez choisir une salle disponible.</small>
       </div>
-    </div>
+    </section>
 
     <!-- Détails de la salle sélectionnée -->
-    <div class="salle-info" *ngIf="selectedSalle">
-      <h3><i class="fas fa-info-circle"></i> Détails de la salle:</h3>
+    <section class="salle-info" *ngIf="selectedSalle" aria-live="polite" aria-atomic="true" [@fadeInOut]>
+      <h3><i class="fas fa-info-circle" aria-hidden="true"></i> Détails de la salle:</h3>
       <div class="salle-details-card">
         <p><strong>Nom:</strong> {{ getSelectedSalleName() }}</p>
         <p><strong>Capacité:</strong> {{ getSelectedSalleCapacite() }} personnes</p>
         <p><strong>Prix:</strong> {{ getSelectedSallePrix() | currency:'EUR' }}</p>
       </div>
-    </div>
+    </section>
 
     <!-- Nombre de personnes -->
-    <div class="form-section" *ngIf="selectedSalle">
-      <h2><i class="fas fa-users"></i> Nombre de personnes</h2>
+    <section class="form-section" *ngIf="selectedSalle" aria-labelledby="nombrePersonnesLabel" [@fadeInOut]>
+      <h2><i class="fas fa-users" aria-hidden="true"></i> Nombre de personnes</h2>
       <div class="form-group">
-        <label for="nombrePersonnes">Nombre de personnes *</label>
-        <input id="nombrePersonnes" type="number" class="form-input" [(ngModel)]="nombrePersonnes" (ngModelChange)="onNombrePersonnesChange()" [min]="1" [max]="getSelectedSalleCapacite()" required>
-        <span class="capacity-info">Capacité maximale: {{ getSelectedSalleCapacite() }} personnes</span>
-        <span class="capacity-warning" *ngIf="nombrePersonnes > getSelectedSalleCapacite()">Le nombre de personnes dépasse la capacité maximale !</span>
+        <label id="nombrePersonnesLabel" for="nombrePersonnes">Nombre de personnes <span aria-hidden="true" class="required">*</span></label>
+        <input id="nombrePersonnes" type="number" class="form-input" [(ngModel)]="nombrePersonnes" (ngModelChange)="onNombrePersonnesChange()" [min]="1" [max]="getSelectedSalleCapacite()" required aria-required="true" aria-describedby="capacityInfo capacityWarning" />
+        <span id="capacityInfo" class="capacity-info">Capacité maximale: {{ getSelectedSalleCapacite() }} personnes</span>
+        <span id="capacityWarning" class="capacity-warning" *ngIf="nombrePersonnes > getSelectedSalleCapacite()" role="alert">
+          Le nombre de personnes dépasse la capacité maximale !
+        </span>
       </div>
-    </div>
+    </section>
 
-    <!-- Sélection du mode créneau -->
-    <div class="form-section" *ngIf="selectedSalle">
-      <h2><i class="fas fa-clock"></i> Mode de sélection du créneau</h2>
-      <div class="form-group">
+    <!-- Mode de sélection du créneau -->
+    <section class="form-section" *ngIf="selectedSalle" aria-labelledby="modeCreneauLabel" [@fadeInOut]>
+      <h2><i class="fas fa-clock" aria-hidden="true"></i> Mode de sélection du créneau</h2>
+      <div class="form-group" role="radiogroup" aria-describedby="modeCreneauHelp" aria-labelledby="modeCreneauLabel">
         <label>
-          <input type="radio" [(ngModel)]="useCustomCreneau" [value]="false" (change)="toggleCreneauMode(false)" [disabled]="isLoading">
+          <input type="radio" name="creneauMode" [(ngModel)]="useCustomCreneau" [value]="false" (change)="toggleCreneauMode(false)" [disabled]="isLoading" [attr.aria-checked]="!useCustomCreneau ? 'true' : 'false'" />
           Choisir un créneau existant
         </label>
         <label>
-          <input type="radio" [(ngModel)]="useCustomCreneau" [value]="true" (change)="toggleCreneauMode(true)" [disabled]="isLoading">
+          <input type="radio" name="creneauMode" [(ngModel)]="useCustomCreneau" [value]="true" (change)="toggleCreneauMode(true)" [disabled]="isLoading" [attr.aria-checked]="useCustomCreneau ? 'true' : 'false'" />
           Créer un créneau personnalisé
         </label>
+        <small id="modeCreneauHelp" class="capacity-info">Sélectionnez un mode pour choisir ou créer un créneau.</small>
       </div>
-    </div>
+    </section>
 
     <!-- Créneaux existants -->
-    <div class="form-section" *ngIf="selectedSalle && !useCustomCreneau">
-      <h2><i class="fas fa-calendar-alt"></i> Sélectionnez un créneau</h2>
+    <section class="form-section" *ngIf="selectedSalle && !useCustomCreneau" aria-labelledby="creneauSelectLabel" [@fadeInOut]>
+      <h2><i class="fas fa-calendar-alt" aria-hidden="true"></i> Sélectionnez un créneau</h2>
       <div class="form-group">
-        <label for="creneauSelect">Choisir un créneau *</label>
-        <select id="creneauSelect" class="form-input" [(ngModel)]="selectedCreneau" (ngModelChange)="onCreneauChange()" [disabled]="isLoading || creneaux.length === 0" required>
-          <option [ngValue]="null">Sélectionnez un créneau</option>
+        <label id="creneauSelectLabel" for="creneauSelect">Choisir un créneau <span aria-hidden="true" class="required">*</span></label>
+        <select id="creneauSelect" class="form-input" [(ngModel)]="selectedCreneau" (ngModelChange)="onCreneauChange()" [disabled]="isLoading || creneaux.length === 0" required aria-required="true" aria-describedby="creneauHelp">
+          <option [ngValue]="null" disabled>Sélectionnez un créneau</option>
           <option *ngFor="let creneau of creneaux" [ngValue]="creneau.id">
             {{ formatDisplayDate(creneau.debut) }} - {{ formatDisplayDate(creneau.fin) }}
           </option>
         </select>
-        <span *ngIf="creneaux.length === 0" class="no-data">Aucun créneau disponible pour cette salle.</span>
+        <small id="creneauHelp" class="capacity-info" *ngIf="creneaux.length === 0">Aucun créneau disponible pour cette salle.</small>
       </div>
-    </div>
+    </section>
 
     <!-- Créneau personnalisé -->
-    <div class="form-section" *ngIf="selectedSalle && useCustomCreneau">
-      <h2><i class="fas fa-magic"></i> Créneau personnalisé</h2>
+    <section class="form-section" *ngIf="selectedSalle && useCustomCreneau" aria-labelledby="creneauPersoLabel" [@fadeInOut]>
+      <h2><i class="fas fa-magic" aria-hidden="true"></i> Créneau personnalisé</h2>
       <div class="personnalise-form">
         <div class="form-row">
           <div class="form-group">
-            <label>Date et heure de début *</label>
-            <input type="datetime-local" class="form-input" [(ngModel)]="creneauPersonnalise.debut" [min]="getTodayDate() + 'T00:00'" (ngModelChange)="onCreneauChange()" required>
+            <label id="creneauPersoLabel" for="debutCreneau">Date et heure de début <span aria-hidden="true" class="required">*</span></label>
+            <input id="debutCreneau" type="datetime-local" class="form-input" [(ngModel)]="creneauPersonnalise.debut" [min]="getTodayDate() + 'T00:00'" (ngModelChange)="onCreneauChange()" required aria-required="true" />
           </div>
           <div class="form-group">
-            <label>Date et heure de fin *</label>
-            <input type="datetime-local" class="form-input" [(ngModel)]="creneauPersonnalise.fin" [min]="creneauPersonnalise.debut || getTodayDate() + 'T00:00'" (ngModelChange)="onCreneauChange()" required>
+            <label for="finCreneau">Date et heure de fin <span aria-hidden="true" class="required">*</span></label>
+            <input id="finCreneau" type="datetime-local" class="form-input" [(ngModel)]="creneauPersonnalise.fin" [min]="creneauPersonnalise.debut || getTodayDate() + 'T00:00'" (ngModelChange)="onCreneauChange()" required aria-required="true" />
           </div>
         </div>
       </div>
-    </div>
+    </section>
 
     <!-- Résumé de la sélection -->
-    <div class="selection-summary" *ngIf="selectedSalle && (selectedCreneau || (creneauPersonnalise.debut && creneauPersonnalise.fin))">
-      <h3><i class="fas fa-check-circle"></i> Résumé de la réservation</h3>
+    <section class="selection-summary" *ngIf="selectedSalle && (selectedCreneau || (creneauPersonnalise.debut && creneauPersonnalise.fin))" aria-live="polite" aria-atomic="true" [@fadeInOut]>
+      <h3><i class="fas fa-check-circle" aria-hidden="true"></i> Résumé de la réservation</h3>
       <div class="summary-card">
         <p><strong>Salle:</strong> {{ getSelectedSalleName() }}</p>
         <p><strong>Prix:</strong> {{ getSelectedSallePrix() | currency:'EUR' }}</p>
         <p><strong>Nombre de personnes:</strong> {{ nombrePersonnes }}</p>
         <p><strong>Début:</strong> {{ useCustomCreneau ? formatDisplayDate(creneauPersonnalise.debut) : formatDisplayDate(getSelectedCreneau()?.debut) }}</p>
         <p><strong>Fin:</strong> {{ useCustomCreneau ? formatDisplayDate(creneauPersonnalise.fin) : formatDisplayDate(getSelectedCreneau()?.fin) }}</p>
-        <p *ngIf="useCustomCreneau" class="personnalise-badge"><i class="fas fa-star"></i> Créneau personnalisé</p>
+        <p *ngIf="useCustomCreneau" class="personnalise-badge" aria-label="Créneau personnalisé"><i class="fas fa-star" aria-hidden="true"></i> Créneau personnalisé</p>
       </div>
-    </div>
+    </section>
 
     <!-- Messages d'erreur -->
-    <div class="message error" *ngIf="showErrorMessage && errorText">
-      <i class="fas fa-exclamation-circle"></i>
+    <section *ngIf="showErrorMessage && errorText" class="message error" role="alert" aria-live="assertive" aria-atomic="true" [@fadeInOut]>
+      <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
       <p>{{ errorText }}</p>
-    </div>
+    </section>
 
     <!-- Message de confirmation -->
-    <div class="message success" *ngIf="showConfirmation">
-      <i class="fas fa-check-circle"></i>
+    <section *ngIf="showConfirmation" class="message success" role="alert" aria-live="assertive" aria-atomic="true" [@fadeInOut]>
+      <i class="fas fa-check-circle" aria-hidden="true"></i>
       <div class="message-content">
         <h3>✅ Réservation confirmée!</h3>
         <p>Votre réservation a été effectuée avec succès.</p>
@@ -122,19 +129,19 @@
           <p><strong>Début:</strong> {{ useCustomCreneau ? formatDisplayDate(creneauPersonnalise.debut) : formatDisplayDate(getSelectedCreneau()?.debut) }}</p>
           <p><strong>Fin:</strong> {{ useCustomCreneau ? formatDisplayDate(creneauPersonnalise.fin) : formatDisplayDate(getSelectedCreneau()?.fin) }}</p>
         </div>
-        <p *ngIf="currentUser?.email">Un email de confirmation a été envoyé à <strong>{{ currentUser?.email }}</strong></p>
-        <button class="new-reservation-btn" (click)="resetForm()">
-          <i class="fas fa-plus"></i> Nouvelle réservation
+        <p *ngIf="currentUser ?.email">Un email de confirmation a été envoyé à <strong>{{ currentUser ?.email }}</strong></p>
+        <button class="new-reservation-btn" (click)="resetForm()" aria-label="Faire une nouvelle réservation">
+          <i class="fas fa-plus" aria-hidden="true"></i> Nouvelle réservation
         </button>
       </div>
-    </div>
+    </section>
 
     <!-- Bouton de réservation -->
     <div class="action-buttons" *ngIf="!showConfirmation">
-      <button class="submit-btn" [disabled]="!canReserve() || isLoading" (click)="reserver()">
-        <i class="fas" [class.fa-spinner]="isLoading" [class.fa-pulse]="isLoading" [class.fa-calendar-check]="!isLoading"></i>
+      <button class="submit-btn" [disabled]="!canReserve() || isLoading" (click)="reserver()" [attr.aria-disabled]="(!canReserve() || isLoading) ? 'true' : 'false'" aria-label="Confirmer la réservation">
+        <i class="fas" [class.fa-spinner]="isLoading" [class.fa-pulse]="isLoading" [class.fa-calendar-check]="!isLoading" aria-hidden="true"></i>
         {{ isLoading ? 'Traitement...' : 'Confirmer la réservation' }}
       </button>
     </div>
-  </div>
+  </section>
 </div>

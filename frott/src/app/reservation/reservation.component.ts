@@ -4,6 +4,9 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { AuthService, User } from '../services/auth.service';
+import { trigger, state, style, transition, animate } from '@angular/animations';
+import { Observable, throwError } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 
 export interface Salle {
   id: number;
@@ -16,10 +19,10 @@ export interface Salle {
 
 export interface Creneau {
   id: number;
-  debut: string; // ISO format
-  fin: string;   // ISO format
+  debut: string;
+  fin: string;
   salle: Salle;
-  personnalise?: string; // Fixed syntax: semicolon removed, proper object structure
+  personnalise?: string;
 }
 
 export interface Reservation {
@@ -27,8 +30,8 @@ export interface Reservation {
   nombrePersonnes: number;
   clientName: string;
   clientEmail: string;
-  salle: Salle;
-  creneau: Creneau;
+  salle: { id: number };
+  creneau: { id: number };
   dateReservation: string;
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
   paiementStatus: 'EN_ATTENTE' | 'PAYEE' | 'ANNULE';
@@ -39,7 +42,18 @@ export interface Reservation {
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './reservation.component.html',
-  styleUrls: ['./reservation.component.css']
+  styleUrls: ['./reservation.component.css'],
+  animations: [
+    trigger('fadeInOut', [
+      state('void', style({ opacity: 0, transform: 'translateY(10px)' })),
+      transition(':enter', [
+        animate('400ms ease-out', style({ opacity: 1, transform: 'translateY(0)' }))
+      ]),
+      transition(':leave', [
+        animate('300ms ease-in', style({ opacity: 0, transform: 'translateY(10px)' }))
+      ])
+    ])
+  ]
 })
 export class ReservationComponent implements OnInit {
   salles: Salle[] = [];
@@ -54,7 +68,7 @@ export class ReservationComponent implements OnInit {
   showConfirmation: boolean = false;
   errorText: string = '';
   currentUser: User | null = null;
-  private apiUrl = 'http://localhost:9090';
+  private apiUrl = 'http://localhost:9090'; // Corrected to match no context path
 
   constructor(
     private http: HttpClient,
@@ -75,30 +89,14 @@ export class ReservationComponent implements OnInit {
 
   loadSalles(): void {
     this.isLoading = true;
-    const headers = this.authService.getAuthHeaders();
-    if (!headers || !headers.get('Authorization')) {
-      this.showError('Session expirée. Veuillez vous reconnecter.');
-      this.authService.logout();
-      setTimeout(() => this.router.navigate(['/login']), 3000);
-      this.isLoading = false;
-      return;
-    }
-
-    this.http.get<Salle[]>(`${this.apiUrl}/salles`, { headers }).subscribe({
+    const headers = this.getAuthHeaders();
+    console.log('Fetching salles from:', `${this.apiUrl}/salles`); // Debug
+    this.http.get<Salle[]>(`${this.apiUrl}/salles`, { headers }).pipe(
+      catchError(err => this.handleHttpError(err, 'Erreur lors du chargement des salles'))
+    ).subscribe({
       next: (data) => {
         this.salles = data.filter(s => s.status === 'DISPONIBLE');
         this.isLoading = false;
-      },
-      error: (err) => {
-        console.error('Erreur chargement salles:', err);
-        this.isLoading = false;
-        if (err.status === 401 || err.status === 403) {
-          this.showError('Session expirée. Veuillez vous reconnecter.');
-          this.authService.logout();
-          setTimeout(() => this.router.navigate(['/login']), 3000);
-        } else {
-          this.showError('Erreur lors du chargement des salles: ' + (err.error?.message || 'Vérifiez la connexion au serveur.'));
-        }
       }
     });
   }
@@ -109,26 +107,16 @@ export class ReservationComponent implements OnInit {
       return;
     }
     this.isLoading = true;
-    const headers = this.authService.getAuthHeaders();
-    if (!headers || !headers.get('Authorization')) {
-      this.showError('Session expirée. Veuillez vous reconnecter.');
-      this.authService.logout();
-      setTimeout(() => this.router.navigate(['/login']), 3000);
-      this.isLoading = false;
-      return;
-    }
-
-    this.http.get<Creneau[]>(`${this.apiUrl}/creneaux/disponibles`, { headers }).subscribe({
+    const headers = this.getAuthHeaders();
+    console.log('Fetching creneaux from:', `${this.apiUrl}/creneaux/disponibles`); // Debug
+    this.http.get<Creneau[]>(`${this.apiUrl}/creneaux/disponibles`, { headers }).pipe(
+      catchError(err => this.handleHttpError(err, 'Erreur lors du chargement des créneaux'))
+    ).subscribe({
       next: (data) => {
         this.creneaux = data
           .filter(c => c.salle.id === this.selectedSalle!.id)
           .map(c => ({ ...c, personnalise: c.personnalise || '' }));
         this.isLoading = false;
-      },
-      error: (err) => {
-        console.error('Erreur chargement créneaux:', err);
-        this.isLoading = false;
-        this.showError('Erreur lors du chargement des créneaux disponibles.');
       }
     });
   }
@@ -237,8 +225,8 @@ export class ReservationComponent implements OnInit {
     }
 
     this.isLoading = true;
-    const headers = this.authService.getAuthHeaders();
-    if (!headers || !headers.get('Authorization')) {
+    const headers = this.getAuthHeaders();
+    if (!headers.get('Authorization')) {
       this.showError('Session expirée. Veuillez vous reconnecter.');
       this.authService.logout();
       setTimeout(() => this.router.navigate(['/login']), 3000);
@@ -246,11 +234,16 @@ export class ReservationComponent implements OnInit {
       return;
     }
 
-    const reservationPayload = {
+    // Construct reservation payload
+    const reservationPayload: Reservation = {
       nombrePersonnes: this.nombrePersonnes,
+      clientName: this.currentUser!.username,
+      clientEmail: this.currentUser!.email,
       salle: { id: this.selectedSalle!.id },
-      clientName: this.currentUser.username,
-      clientEmail: this.currentUser.email
+      creneau: { id: this.useCustomCreneau ? 0 : this.selectedCreneau! },
+      dateReservation: new Date().toISOString(),
+      status: 'PENDING',
+      paiementStatus: 'EN_ATTENTE'
     };
 
     if (this.useCustomCreneau) {
@@ -261,34 +254,60 @@ export class ReservationComponent implements OnInit {
         personnalise: ''
       };
 
-      this.http.post<Creneau>(`${this.apiUrl}/creneaux`, creneauPayload, { headers }).subscribe({
+      console.log('Sending creneau payload:', JSON.stringify(creneauPayload, null, 2)); // Debug
+      this.http.post<Creneau>(`${this.apiUrl}/creneaux`, creneauPayload, { headers }).pipe(
+        catchError(err => this.handleHttpError(err, 'Erreur lors de la création du créneau'))
+      ).subscribe({
         next: (creneau) => {
-          this.createReservation({ ...reservationPayload, creneau: { id: creneau.id } }, headers);
-        },
-        error: (err) => {
-          this.isLoading = false;
-          this.showError('Erreur lors de la création du créneau: ' + (err.error?.message || 'Vérifiez les données saisies.'));
+          reservationPayload.creneau = { id: creneau.id };
+          this.createReservation(reservationPayload, headers);
         }
       });
     } else {
-      this.createReservation({ ...reservationPayload, creneau: { id: this.selectedCreneau! } }, headers);
+      this.createReservation(reservationPayload, headers);
     }
   }
 
-  private createReservation(payload: any, headers: HttpHeaders): void {
-    this.http.post<Reservation>(`${this.apiUrl}/reservations`, payload, { headers }).subscribe({
-      next: () => {
+  private getAuthHeaders(): HttpHeaders {
+    const headers = this.authService.getAuthHeaders();
+    console.log('Auth Headers:', headers.get('Authorization')); // Debug
+    return headers;
+  }
+
+  private createReservation(payload: Reservation, headers: HttpHeaders): void {
+    console.log('Sending to URL:', `${this.apiUrl}/reservations`); // Debug
+    console.log('Reservation payload:', JSON.stringify(payload, null, 2)); // Debug
+    this.http.post<Reservation>(`${this.apiUrl}/reservations`, payload, { headers }).pipe(
+      catchError(err => this.handleHttpError(err, 'Erreur lors de la création de la réservation'))
+    ).subscribe({
+      next: (response) => {
+        console.log('Reservation response:', response); // Debug
         this.isLoading = false;
         this.showConfirmation = true;
         this.showErrorMessage = false;
-        alert('Réservation créée avec succès.');
+        alert('Réservation créée avec succès. Un email de confirmation sera envoyé après validation.');
         this.resetForm();
-      },
-      error: (err) => {
-        this.isLoading = false;
-        this.showError('Erreur lors de la création de la réservation: ' + (err.error?.message || 'Vérifiez les données saisies.'));
       }
     });
+  }
+
+  private handleHttpError(err: any, defaultMessage: string): Observable<never> {
+    this.isLoading = false;
+    let errorMessage = defaultMessage + ': ';
+    if (err.status === 401 || err.status === 403) {
+      errorMessage += 'Session expirée ou accès non autorisé. Veuillez vous reconnecter.';
+      this.authService.logout();
+      setTimeout(() => this.router.navigate(['/login']), 3000);
+    } else if (err.status === 404) {
+      errorMessage += 'Ressource non trouvée. Vérifiez si le serveur est en cours d\'exécution sur le port 9090.';
+    } else if (err.status === 400 || err.status === 409) {
+      errorMessage += err.error?.message || 'Données invalides.';
+    } else {
+      errorMessage += 'Vérifiez la connexion au serveur.';
+    }
+    console.error('HTTP Error:', err);
+    this.showError(errorMessage);
+    return throwError(() => new Error(errorMessage));
   }
 
   resetForm(): void {

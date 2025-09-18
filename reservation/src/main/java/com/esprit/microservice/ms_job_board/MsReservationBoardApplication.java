@@ -1,10 +1,7 @@
 package com.esprit.microservice.ms_job_board;
 
-import com.esprit.microservice.ms_job_board.Repositories.RoleRepository;
-import com.esprit.microservice.ms_job_board.Repositories.UserRepository;
-import com.esprit.microservice.ms_job_board.models.Role;
 import com.esprit.microservice.ms_job_board.models.User;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.esprit.microservice.ms_job_board.Repositories.UserRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -15,6 +12,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.HashSet;
 import java.util.Set;
 
 @EnableScheduling
@@ -24,7 +22,6 @@ public class MsReservationBoardApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(MsReservationBoardApplication.class, args);
 	}
-
 
 	// 🔹 Personnalisation du port de l'application
 	@Bean
@@ -36,23 +33,26 @@ public class MsReservationBoardApplication {
 	public RestTemplate restTemplate() {
 		return new RestTemplate();
 	}
+
 	@Bean
-	public CommandLineRunner run(UserRepository userRepo, RoleRepository roleRepo, PasswordEncoder encoder) {
+	public CommandLineRunner run(UserRepository userRepository, PasswordEncoder passwordEncoder) {
 		return args -> {
-			if (!userRepo.existsByUsername("admin")) {
+			// Vérifier si l'utilisateur admin n'existe pas déjà
+			if (!userRepository.existsByUsername("admin")) {
 				User admin = new User();
 				admin.setUsername("admin");
 				admin.setEmail("admin@test.com");
-				admin.setPassword(encoder.encode("admin123"));
+				admin.setPassword(passwordEncoder.encode("admin123"));
 
-				// Récupération du rôle depuis l'Optional
-				Role adminRole = roleRepo.findByName("ROLE_ADMIN")
-						.orElseThrow(() -> new RuntimeException("ROLE_ADMIN not found"));
+				// Utilisation directe de l'enum Role
+				Set<User.Role> roles = new HashSet<>();
+				roles.add(User.Role.ROLE_ADMIN);
+				admin.setRoles(roles);
 
-				admin.setRoles(Set.of(adminRole));
-				userRepo.save(admin);
+				userRepository.save(admin);
+				System.out.println("Admin user created with username: admin");
 			}
 		};
 	}
-
 }
+

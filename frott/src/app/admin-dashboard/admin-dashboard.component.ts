@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import {FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule} from '@angular/forms';
 import { CommonModule, DatePipe } from '@angular/common';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { AuthService } from '../services/auth.service';
@@ -16,8 +16,8 @@ export interface Salle {
 
 export interface Creneau {
   id?: number;
-  debut: string; // ISO format (e.g., 2025-09-03T09:00:00)
-  fin: string;   // ISO format
+  debut: string;
+  fin: string;
   salle: Salle;
   personnalise?: string;
 }
@@ -29,34 +29,49 @@ export interface Reservation {
   clientEmail: string;
   salle: Salle;
   creneau: Creneau;
-  dateReservation: string; // ISO format
+  dateReservation: string;
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
   paiementStatus: 'EN_ATTENTE' | 'PAYEE' | 'ANNULE';
+}
+
+export interface User {
+  id?: number;
+  username: string;
+  email: string;
+  password?: string;
+  roles?: { id: number; name: string }[];
 }
 
 @Component({
   selector: 'app-admin-dashboard',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule],
   templateUrl: './admin-dashboard.component.html',
   styleUrls: ['./admin-dashboard.component.css']
 })
 export class AdminDashboardComponent implements OnInit {
-  currentPage: 'login' | 'dashboard' | 'reservations' | 'creneaux' | 'salles' | 'paiements' = 'login';
+  currentPage: 'login' | 'dashboard' | 'reservations' | 'creneaux' | 'salles' | 'paiements' | 'users' = 'login';
   loginForm: FormGroup;
   newCreneauForm: FormGroup;
   editCreneauForm: FormGroup;
   newSalleForm: FormGroup;
   editSalleForm: FormGroup;
+  newUserForm: FormGroup;
+  editUserForm: FormGroup;
   creneaux: Creneau[] = [];
   reservations: Reservation[] = [];
   salles: Salle[] = [];
+  users: User[] = [];
   reservationsAvecPaiementEnAttente: Reservation[] = [];
   reservationsPayees: Reservation[] = [];
   editingCreneau: Creneau | null = null;
   editingSalle: Salle | null = null;
+  editingUser: User | null = null;
   selectedFile: File | null = null;
-  private apiUrl = 'http://localhost:9090'; // Updated to correct port
+  private apiUrl = 'http://localhost:9090';
+  resetEmail: string = '';
+  resetToken: string | null = null;
+  newPassword: string = '';
 
   constructor(
     private fb: FormBuilder,
@@ -95,6 +110,19 @@ export class AdminDashboardComponent implements OnInit {
       capacite: [1, [Validators.required, Validators.min(1)]],
       prix: [0, [Validators.required, Validators.min(0)]],
       status: ['DISPONIBLE', Validators.required]
+    });
+
+    this.newUserForm = this.fb.group({
+      username: ['', [Validators.required, Validators.minLength(3)]],
+      email: ['', [Validators.required, Validators.email]],
+      password: ['', [Validators.required, Validators.minLength(6)]]
+    });
+
+    this.editUserForm = this.fb.group({
+      id: [''],
+      username: ['', [Validators.required, Validators.minLength(3)]],
+      email: ['', [Validators.required, Validators.email]],
+      password: [''] // Optionnel lors de la modification
     });
   }
 
@@ -140,12 +168,14 @@ export class AdminDashboardComponent implements OnInit {
     this.router.navigate(['/login']);
   }
 
-  showPage(page: 'dashboard' | 'reservations' | 'creneaux' | 'salles' | 'paiements'): void {
+  showPage(page: 'dashboard' | 'reservations' | 'creneaux' | 'salles' | 'paiements' | 'users'): void {
     this.currentPage = page;
     this.cancelEdit();
     if (page === 'paiements') {
       this.loadReservationsAvecPaiementEnAttente();
       this.loadReservationsPayees();
+    } else if (page === 'users') {
+      this.loadUsers();
     }
   }
 
@@ -161,6 +191,7 @@ export class AdminDashboardComponent implements OnInit {
 
   loadAllData(): void {
     this.loadSalles();
+    this.loadUsers();
   }
 
   private loadSalles(): void {
@@ -194,7 +225,7 @@ export class AdminDashboardComponent implements OnInit {
         this.creneaux = creneaux.map(creneau => {
           const salleComplete = this.salles.find(s => s.id === creneau.salle.id);
           if (salleComplete) creneau.salle = salleComplete;
-          creneau.personnalise = creneau.personnalise || ''; // Ensure personnalise is set
+          creneau.personnalise = creneau.personnalise || '';
           return creneau;
         });
         console.log('Creneaux chargés:', this.creneaux);
@@ -302,8 +333,8 @@ export class AdminDashboardComponent implements OnInit {
 
     const formData = new FormData();
     formData.append('nom', this.editSalleForm.get('nom')?.value);
-    formData.append('capacite', String(this.newSalleForm.get('capacite')?.value));
-    formData.append('prix', String(this.newSalleForm.get('prix')?.value));
+    formData.append('capacite', String(this.editSalleForm.get('capacite')?.value));
+    formData.append('prix', String(this.editSalleForm.get('prix')?.value));
     formData.append('status', this.editSalleForm.get('status')?.value);
     if (this.selectedFile) formData.append('image', this.selectedFile);
 
@@ -347,6 +378,7 @@ export class AdminDashboardComponent implements OnInit {
       }
     });
   }
+
   addCreneau(): void {
     if (!this.newCreneauForm.valid) {
       alert('Veuillez remplir tous les champs du créneau correctement.');
@@ -360,7 +392,7 @@ export class AdminDashboardComponent implements OnInit {
       debut: new Date(data.debut).toISOString(),
       fin: new Date(data.fin).toISOString(),
       salle: { id: Number(data.salleId) },
-      personnalise: '' // Include personnalise
+      personnalise: ''
     };
 
     this.http.post<Creneau>(`${this.apiUrl}/creneaux`, payload, { headers }).subscribe({
@@ -382,6 +414,15 @@ export class AdminDashboardComponent implements OnInit {
     });
   }
 
+  editCreneau(creneau: Creneau): void {
+    this.editingCreneau = creneau;
+    this.editCreneauForm.patchValue({
+      debut: creneau.debut.slice(0, 16),
+      fin: creneau.fin.slice(0, 16),
+      salleId: creneau.salle?.id
+    });
+  }
+
   updateCreneau(): void {
     if (!this.editCreneauForm.valid || !this.editingCreneau?.id) {
       alert('Veuillez remplir tous les champs correctement.');
@@ -395,7 +436,7 @@ export class AdminDashboardComponent implements OnInit {
       debut: new Date(data.debut).toISOString(),
       fin: new Date(data.fin).toISOString(),
       salle: { id: Number(data.salleId) },
-      personnalise: this.editingCreneau.personnalise || '' // Preserve or set personnalise
+      personnalise: this.editingCreneau.personnalise || ''
     };
 
     this.http.put<Creneau>(`${this.apiUrl}/creneaux/${this.editingCreneau.id}`, payload, { headers }).subscribe({
@@ -417,14 +458,7 @@ export class AdminDashboardComponent implements OnInit {
       }
     });
   }
-  editCreneau(creneau: Creneau): void {
-    this.editingCreneau = creneau;
-    this.editCreneauForm.patchValue({
-      debut: creneau.debut.slice(0, 16),
-      fin: creneau.fin.slice(0, 16),
-      salleId: creneau.salle?.id
-    });
-  }
+
   deleteCreneau(id?: number): void {
     if (!id || !confirm('Êtes-vous sûr de vouloir supprimer ce créneau ?')) return;
     const headers = this.getAuthHeaders();
@@ -530,6 +564,29 @@ export class AdminDashboardComponent implements OnInit {
     });
   }
 
+  annulerPaiement(reservationId?: number): void {
+    if (!reservationId || !confirm('Êtes-vous sûr de vouloir annuler ce paiement ?')) return;
+    const headers = this.getAuthHeaders();
+    if (!headers) return;
+
+    this.http.post(`${this.apiUrl}/paiements/annuler/${reservationId}`, {}, { headers }).subscribe({
+      next: () => {
+        alert('Paiement annulé avec succès.');
+        this.loadReservationsAvecPaiementEnAttente();
+        this.loadReservationsPayees();
+        this.loadReservations();
+      },
+      error: (err) => {
+        console.error('Erreur annulation paiement:', err);
+        if (err.status === 401 || err.status === 403) {
+          this.handleAuthError();
+        } else {
+          alert('Erreur lors de l’annulation du paiement: ' + (err.error?.message || 'Vérifiez les données saisies.'));
+        }
+      }
+    });
+  }
+
   getPaiementStatusClass(status: string): string {
     switch (status) {
       case 'PAYEE': return 'status-paye';
@@ -551,8 +608,10 @@ export class AdminDashboardComponent implements OnInit {
   cancelEdit(): void {
     this.editingCreneau = null;
     this.editingSalle = null;
+    this.editingUser = null;
     this.editCreneauForm.reset();
     this.editSalleForm.reset();
+    this.editUserForm.reset();
     this.selectedFile = null;
   }
 
@@ -591,25 +650,147 @@ export class AdminDashboardComponent implements OnInit {
     alert('Session expirée. Veuillez vous reconnecter.');
     this.logout();
   }
-  annulerPaiement(reservationId?: number): void {
-    if (!reservationId || !confirm('Êtes-vous sûr de vouloir annuler ce paiement ?')) return;
+
+  getUserRolesDisplay(user: User): string {
+    return user.roles?.map(r => r.name).join(', ') || 'Aucun rôle';
+  }
+
+  private loadUsers(): void {
     const headers = this.getAuthHeaders();
     if (!headers) return;
 
-    this.http.post(`${this.apiUrl}/paiements/annuler/${reservationId}`, {}, { headers }).subscribe({
-      next: () => {
-        alert('Paiement annulé avec succès.');
-        this.loadReservationsAvecPaiementEnAttente();
-        this.loadReservationsPayees();
-        this.loadReservations();
+    this.http.get<User[]>(`${this.apiUrl}/api/users`, { headers }).subscribe({
+      next: (data: User[]) => {
+        this.users = data;
+        console.log('Utilisateurs chargés:', data);
       },
       error: (err) => {
-        console.error('Erreur annulation paiement:', err);
+        console.error('Erreur chargement utilisateurs:', err);
         if (err.status === 401 || err.status === 403) {
           this.handleAuthError();
         } else {
-          alert('Erreur lors de l’annulation du paiement: ' + (err.error?.message || 'Vérifiez les données saisies.'));
+          alert('Erreur lors du chargement des utilisateurs.');
         }
+      }
+    });
+  }
+
+  addUser(): void {
+    if (!this.newUserForm.valid) {
+      alert('Veuillez remplir tous les champs de l\'utilisateur correctement.');
+      return;
+    }
+    const headers = this.getAuthHeaders();
+    if (!headers) return;
+
+    const user = this.newUserForm.value;
+    this.http.post<User>(`${this.apiUrl}/api/users`, user, { headers }).subscribe({
+      next: (res: User) => {
+        this.users.push(res);
+        this.newUserForm.reset();
+        alert('Utilisateur ajouté avec succès.');
+      },
+      error: (err) => {
+        console.error('Erreur ajout utilisateur:', err);
+        if (err.status === 401 || err.status === 403) {
+          this.handleAuthError();
+        } else {
+          alert('Erreur lors de l\'ajout de l\'utilisateur: ' + (err.error?.message || 'Vérifiez les données saisies.'));
+        }
+      }
+    });
+  }
+
+  editUser(user: User): void {
+    this.editingUser = user;
+    this.editUserForm.patchValue({
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      password: '' // Ne pas pré-remplir le mot de passe
+    });
+  }
+
+  updateUser(): void {
+    if (!this.editUserForm.valid || !this.editingUser?.id) {
+      alert('Veuillez remplir tous les champs correctement.');
+      return;
+    }
+    const headers = this.getAuthHeaders();
+    if (!headers) return;
+
+    const user = this.editUserForm.value;
+    this.http.put<User>(`${this.apiUrl}/api/users/${this.editingUser.id}`, user, { headers }).subscribe({
+      next: (res: User) => {
+        const index = this.users.findIndex(u => u.id === res.id);
+        if (index !== -1) this.users[index] = res;
+        this.cancelEdit();
+        alert('Utilisateur modifié avec succès.');
+      },
+      error: (err) => {
+        console.error('Erreur modification utilisateur:', err);
+        if (err.status === 401 || err.status === 403) {
+          this.handleAuthError();
+        } else {
+          alert('Erreur lors de la modification de l\'utilisateur: ' + (err.error?.message || 'Vérifiez les données saisies.'));
+        }
+      }
+    });
+  }
+
+  deleteUser(id?: number): void {
+    if (!id || !confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) return;
+    const headers = this.getAuthHeaders();
+    if (!headers) return;
+
+    this.http.delete(`${this.apiUrl}/api/users/${id}`, { headers }).subscribe({
+      next: () => {
+        this.users = this.users.filter(u => u.id !== id);
+        alert('Utilisateur supprimé avec succès.');
+      },
+      error: (err) => {
+        console.error('Erreur suppression utilisateur:', err);
+        if (err.status === 401 || err.status === 403) {
+          this.handleAuthError();
+        } else {
+          alert('Erreur lors de la suppression de l\'utilisateur: ' + (err.error?.message || 'Vérifiez les données saisies.'));
+        }
+      }
+    });
+  }
+
+  resetPasswordRequest(): void {
+    const headers = this.getAuthHeaders();
+    if (!headers) return;
+
+    this.http.post(`${this.apiUrl}/api/users/reset-password?email=${this.resetEmail}`, {}, { headers }).subscribe({
+      next: () => {
+        alert('Un lien de réinitialisation a été envoyé à votre email.');
+      },
+      error: (err) => {
+        console.error('Erreur demande réinitialisation:', err);
+        alert('Erreur lors de la demande de réinitialisation: ' + (err.error?.message || 'Vérifiez l\'email.'));
+      }
+    });
+  }
+
+  submitResetPassword(): void {
+    if (!this.resetToken || !this.newPassword) {
+      alert('Veuillez entrer un nouveau mot de passe.');
+      return;
+    }
+    const headers = this.getAuthHeaders();
+    if (!headers) return;
+
+    this.http.post(`${this.apiUrl}/api/users/reset-password/${this.resetToken}?newPassword=${this.newPassword}`, {}, { headers }).subscribe({
+      next: () => {
+        alert('Mot de passe réinitialisé avec succès.');
+        this.resetToken = null;
+        this.newPassword = '';
+      },
+      error: (err) => {
+        console.error('Erreur réinitialisation mot de passe:', err);
+        alert('Erreur lors de la réinitialisation: ' + (err.error?.message || 'Token invalide ou expiré.'));
       }
     });
   }

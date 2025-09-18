@@ -4,6 +4,8 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
@@ -18,20 +20,26 @@ import java.util.stream.Collectors;
 @Service
 public class JwtService {
 
+    private static final Logger logger = LoggerFactory.getLogger(JwtService.class);
+
     @Value("${jwt.secret}")
     private String secret;
+
+    @Value("${jwt.expiration:36000000}")
+    private long jwtExpiration;
 
     private SecretKey getSigningKey() {
         try {
             byte[] keyBytes = Base64.getDecoder().decode(secret);
-            System.out.println("Decoded JWT secret length: " + keyBytes.length);
             if (keyBytes.length < 32) {
-                throw new IllegalArgumentException("JWT secret must be at least 32 bytes");
+                logger.error("JWT secret length ({}) is less than 32 bytes, which is insecure", keyBytes.length);
+                throw new IllegalArgumentException("JWT secret must be at least 32 bytes long");
             }
+            logger.debug("Decoded JWT secret length: {}", keyBytes.length);
             return Keys.hmacShaKeyFor(keyBytes);
         } catch (IllegalArgumentException e) {
-            System.err.println("Failed to decode JWT secret: " + e.getMessage());
-            throw new RuntimeException("Invalid JWT secret: " + e.getMessage());
+            logger.error("Failed to decode JWT secret: {}", e.getMessage());
+            throw new RuntimeException("Invalid JWT secret configuration", e);
         }
     }
 
@@ -39,9 +47,13 @@ public class JwtService {
         try {
             return extractClaim(token, Claims::getSubject);
         } catch (Exception e) {
-            System.err.println("JWT parsing error: " + e.getMessage());
-            throw e;
+            logger.error("Error extracting username from JWT token: {}", e.getMessage());
+            throw new RuntimeException("Invalid JWT token", e);
         }
+    }
+
+    public String extractActualUsername(String token) {
+        return extractClaim(token, claims -> claims.get("username", String.class));
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
@@ -57,18 +69,21 @@ public class JwtService {
                     .parseClaimsJws(token)
                     .getBody();
         } catch (Exception e) {
-            System.err.println("JWT parsing error: " + e.getMessage());
-            throw e;
+            logger.error("Error parsing JWT token: {}", e.getMessage());
+            throw new RuntimeException("Unable to parse JWT token", e);
         }
     }
 
     public String generateToken(String username, String email, List<String> roles) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + jwtExpiration);
+
         return Jwts.builder()
-                .setSubject(username)
-                .claim("email", email)
+                .setSubject(email)
+                .claim("username", username)
                 .claim("roles", roles)
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 10)) // 10 hours
+                .setIssuedAt(now)
+                .setExpiration(expiryDate)
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
@@ -81,24 +96,30 @@ public class JwtService {
                     .parseClaimsJws(token);
             return true;
         } catch (Exception e) {
-            System.err.println("JWT validation error: " + e.getMessage());
+            logger.warn("JWT token validation failed: {}", e.getMessage());
             return false;
         }
     }
 
     public List<String> extractRoles(String token) {
-        List<String> roles = extractClaim(token, claims -> claims.get("roles", List.class));
-        System.out.println("Extracted roles: " + roles);
-        return roles;
+        try {
+            List<String> roles = extractClaim(token, claims -> claims.get("roles", List.class));
+            logger.debug("Extracted roles from token: {}", roles);
+            return roles != null ? roles : List.of();
+        } catch (Exception e) {
+            logger.error("Error extracting roles from JWT token: {}", e.getMessage());
+            return List.of();
+        }
     }
 
     public List<SimpleGrantedAuthority> getAuthorities(String token) {
         List<String> roles = extractRoles(token);
-        List<SimpleGrantedAuthority> authorities = roles.stream()
-                .map(role -> new SimpleGrantedAuthority(role.startsWith("ROLE_") ? role.substring(5) : role))
+        return roles.stream()
+                .map(role -> {
+                    String authority = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+                    return new SimpleGrantedAuthority(authority);
+                })
                 .collect(Collectors.toList());
-        System.out.println("Mapped authorities: " + authorities);
-        return authorities;
     }
 
     public boolean hasRole(String token, String role) {

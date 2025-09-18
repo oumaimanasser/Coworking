@@ -36,7 +36,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
-        // Skip /auth/** endpoints
         if (request.getRequestURI().startsWith("/auth/")) {
             filterChain.doFilter(request, response);
             return;
@@ -59,12 +58,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
 
             if (jwtService.validateToken(jwt)) {
-                List<String> roles = jwtService.extractRoles(jwt);
-                List<SimpleGrantedAuthority> authorities = roles.stream()
-                        .map(role -> new SimpleGrantedAuthority(role.startsWith("ROLE_") ? role.substring(5) : role))
+                List<String> roleNames = jwtService.extractRoles(jwt);
+                List<SimpleGrantedAuthority> authorities = roleNames.stream()
+                        .map(role -> {
+                            String authority = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+                            return new SimpleGrantedAuthority(authority);
+                        })
                         .collect(Collectors.toList());
-
-                System.out.println("Mapped authorities for user " + userEmail + ": " + authorities);
 
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         userDetails,
@@ -76,9 +76,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             } else {
                 System.out.println("Invalid JWT token for user: " + userEmail);
             }
-        } else {
-            System.out.println("No user email extracted or authentication already set for URI: " + request.getRequestURI());
         }
         filterChain.doFilter(request, response);
     }
+
+
 }

@@ -1,16 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { BehaviorSubject, Observable, tap } from 'rxjs';
+import { BehaviorSubject, Observable, tap, catchError, throwError } from 'rxjs';
 import { Router } from '@angular/router';
-
-export interface User {
-  id: number;
-  username: string;
-  email: string;
-  roles?: string[];        // Ajouter le champ roles
-  authorities?: string[];  // Ajouter le champ authorities
-  role?: string;           // Ajouter le champ role (pour les cas simples)
-}
 
 export interface LoginRequest {
   email: string;
@@ -19,9 +10,17 @@ export interface LoginRequest {
 
 export interface LoginResponse {
   token: string;
-  user: User;
-  authorities?: string[];
-  roles?: string[];        // Ajouter le champ roles dans la réponse
+  email: string;
+  username: string;
+  roles: string[];
+  message?: string;
+}
+
+export interface User {
+  id?: number;
+  username: string;
+  email: string;
+  roles: string[];
 }
 
 @Injectable({
@@ -53,15 +52,19 @@ export class AuthService {
       tap(res => {
         localStorage.setItem('token', res.token);
 
-        // Stocker l'utilisateur avec ses rôles
-        const userWithRoles = {
-          ...res.user,
-          roles: res.roles || res.authorities || res.user.roles || [],
-          authorities: res.authorities || res.user.authorities || []
+        const user: User = {
+          username: res.username,
+          email: res.email,
+          roles: res.roles || []
         };
 
-        localStorage.setItem('user', JSON.stringify(userWithRoles));
-        this.currentUserSubject.next(userWithRoles);
+        localStorage.setItem('user', JSON.stringify(user));
+        localStorage.setItem('roles', JSON.stringify(res.roles || []));
+        this.currentUserSubject.next(user);
+      }),
+      catchError(error => {
+        console.error('Erreur de connexion:', error);
+        return throwError(() => new Error(error.error?.message || 'Échec de la connexion'));
       })
     );
   }
@@ -87,50 +90,33 @@ export class AuthService {
   }
 
   isAuthenticated(): boolean {
-    return !!localStorage.getItem('token');
+    return !!this.getToken();
   }
 
   getCurrentUser(): User | null {
     return this.currentUserSubject.value;
   }
 
-  register(userData: { username: string; email: string; password: string; }): Observable<any> {
+  register(userData: { username: string; email: string; password: string }): Observable<any> {
     return this.http.post(`${this.apiUrl}/register`, userData);
   }
 
-  // Méthode pour vérifier si l'utilisateur est admin
   isAdmin(): boolean {
     const user = this.getCurrentUser();
     if (!user) return false;
-
-    // Vérifier plusieurs formats possibles de rôles
-    const hasAdminInRoles = user.roles ? user.roles.includes('ADMIN') : false;
-    const hasRoleAdminInRoles = user.roles ? user.roles.includes('ROLE_ADMIN') : false;
-    const hasAdminInAuthorities = user.authorities ? user.authorities.includes('ADMIN') : false;
-    const hasRoleAdminInAuthorities = user.authorities ? user.authorities.includes('ROLE_ADMIN') : false;
-
-    return user.role === 'ADMIN' ||
-      hasAdminInRoles ||
-      hasRoleAdminInRoles ||
-      hasAdminInAuthorities ||
-      hasRoleAdminInAuthorities;
+    return user.roles.includes('ROLE_ADMIN');
   }
 
-  // Méthode pour récupérer les rôles de l'utilisateur
   getUserRoles(): string[] {
     const user = this.getCurrentUser();
-    if (!user) return [];
-
-    return user.roles || user.authorities || [];
+    return user?.roles || [];
   }
 
-  // Méthode pour vérifier si l'utilisateur a un rôle spécifique
   hasRole(role: string): boolean {
     const roles = this.getUserRoles();
     return roles.includes(role) || roles.includes(`ROLE_${role}`);
   }
 
-  // Méthode pour extraire les informations du token JWT
   getUserInfoFromToken(): any {
     const token = this.getToken();
     if (!token) return null;

@@ -1,8 +1,8 @@
 import { Component } from '@angular/core';
-import {FormBuilder, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
-import {Router, RouterModule} from '@angular/router';
-import { AuthService } from '../../services/auth.service';
-import {CommonModule} from '@angular/common';
+import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router, RouterModule } from '@angular/router';
+import { AuthService, LoginResponse, User } from '../../services/auth.service';
+import { CommonModule } from '@angular/common';
 
 interface LoginPayload {
   email: string;
@@ -13,10 +13,7 @@ interface LoginPayload {
   selector: 'app-login',
   templateUrl: './login.component.html',
   standalone: true,
-  imports: [CommonModule,
-    ReactiveFormsModule,
-    RouterModule
-  ],
+  imports: [CommonModule, ReactiveFormsModule, RouterModule],
   styleUrls: ['./login.component.css']
 })
 export class LoginComponent {
@@ -47,19 +44,21 @@ export class LoginComponent {
         password: this.loginForm.value.password
       };
       this.authService.login(payload).subscribe({
-        next: (res: any) => {
+        next: (res: LoginResponse) => {
           this.isLoading = false;
-          this.message = 'Connexion réussie !';
+          this.message = res.message || 'Connexion réussie !';
           this.messageType = 'success';
 
-          // Stocker le token et l'utilisateur
-          localStorage.setItem('user', JSON.stringify(res.user));
           localStorage.setItem('token', res.token);
-          localStorage.setItem('roles', JSON.stringify(res.authorities || res.user.roles || []));
+          localStorage.setItem('roles', JSON.stringify(res.roles || []));
 
-          const roles = res.authorities || res.user.roles || [];
+          const user: User = {
+            username: res.username,
+            email: res.email,
+            roles: res.roles || []
+          };
+          localStorage.setItem('user', JSON.stringify(user));
 
-          // Redirection selon le rôle
           if (this.authService.isAdmin()) {
             this.router.navigate(['/admin']);
           } else {
@@ -73,4 +72,6 @@ export class LoginComponent {
           console.error('Login error:', err);
         }
       });
-    }}}
+    }
+  }
+}

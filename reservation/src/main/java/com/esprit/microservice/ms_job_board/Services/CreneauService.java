@@ -18,22 +18,18 @@ public class CreneauService {
         this.reservationRepo = reservationRepo;
     }
 
-    // Ajouter un créneau lié à une salle
     public Creneau ajouter(Creneau creneau) {
         return repo.save(creneau);
     }
 
-    // Supprimer un créneau
     public void supprimer(Long id) {
         repo.deleteById(id);
     }
 
-    // Lister tous les créneaux
     public List<Creneau> listerTous() {
         return repo.findAll();
     }
 
-    // Vérifier créneaux disponibles (selon capacité salle et réservations existantes)
     public List<Creneau> rechercherDisponibles() {
         return repo.findByDebutAfter(LocalDateTime.now())
                 .stream()

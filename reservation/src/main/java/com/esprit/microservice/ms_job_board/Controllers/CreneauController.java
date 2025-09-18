@@ -5,9 +5,13 @@ import com.esprit.microservice.ms_job_board.Repositories.SalleRepository;
 import com.esprit.microservice.ms_job_board.Repositories.CreneauRepository;
 import com.esprit.microservice.ms_job_board.models.Creneau;
 import com.esprit.microservice.ms_job_board.models.Salle;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @CrossOrigin(origins = "http://localhost:4200")
 @RestController
@@ -26,55 +30,84 @@ public class CreneauController {
         this.creneauService = creneauService;
     }
 
-    // Ajouter un créneau
-    @PostMapping
-    public Creneau addCreneau(@RequestBody Creneau creneau) {
-        Salle salle = salleRepository.findById(creneau.getSalle().getId())
-                .orElseThrow(() -> new RuntimeException("Salle not found"));
-        creneau.setSalle(salle);
-        return creneauRepository.save(creneau);
+    private boolean overlaps(Creneau newCreneau, Creneau existing) {
+        return !(newCreneau.getFin().isBefore(existing.getDebut()) || newCreneau.getDebut().isAfter(existing.getFin()));
     }
 
-    // Récupérer tous les créneaux
+    @PostMapping
+    public ResponseEntity<?> addCreneau(@Valid @RequestBody Creneau creneau) {
+        try {
+            Salle salle = salleRepository.findById(creneau.getSalle().getId())
+                    .orElseThrow(() -> new RuntimeException("Salle not found"));
+
+            // Check for overlapping creneaux
+            List<Creneau> existingCreneaux = creneauRepository.findBySalle(salle);
+            for (Creneau ex : existingCreneaux) {
+                if (overlaps(creneau, ex)) {
+                    return ResponseEntity.badRequest().body(Map.of("message", "Créneau chevauche un créneau existant"));
+                }
+            }
+
+            creneau.setSalle(salle);
+            Creneau saved = creneauRepository.save(creneau);
+            return ResponseEntity.ok(saved);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
     @GetMapping
     public List<Creneau> getAll() {
         return creneauRepository.findAll();
     }
 
-    // Récupérer les créneaux disponibles
     @GetMapping("/disponibles")
     public List<Creneau> getCreneauxDisponibles() {
         return creneauService.rechercherDisponibles();
     }
 
-    // Récupérer un créneau par ID
     @GetMapping("/{id}")
-    public Creneau getCreneauById(@PathVariable Long id) {
+    public ResponseEntity<Creneau> getCreneauById(@PathVariable Long id) {
         return creneauRepository.findById(id)
+                .map(ResponseEntity::ok)
                 .orElseThrow(() -> new RuntimeException("Créneau not found with id: " + id));
     }
 
-    // Supprimer un créneau
     @DeleteMapping("/{id}")
-    public void deleteCreneau(@PathVariable Long id) {
-        creneauRepository.deleteById(id);
+    public ResponseEntity<?> deleteCreneau(@PathVariable Long id) {
+        try {
+            creneauRepository.deleteById(id);
+            return ResponseEntity.ok(Map.of("message", "Créneau supprimé"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
     }
 
-    // Mettre à jour un créneau
     @PutMapping("/{id}")
-    public Creneau updateCreneau(@PathVariable Long id, @RequestBody Creneau creneauDetails) {
-        Creneau creneau = creneauRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Créneau not found with id: " + id));
+    public ResponseEntity<?> updateCreneau(@PathVariable Long id, @Valid @RequestBody Creneau creneauDetails) {
+        try {
+            Creneau creneau = creneauRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Créneau not found with id: " + id));
 
-        creneau.setDebut(creneauDetails.getDebut());
-        creneau.setFin(creneauDetails.getFin());
-
-        if (creneauDetails.getSalle() != null && creneauDetails.getSalle().getId() != null) {
             Salle salle = salleRepository.findById(creneauDetails.getSalle().getId())
                     .orElseThrow(() -> new RuntimeException("Salle not found"));
-            creneau.setSalle(salle);
-        }
 
-        return creneauRepository.save(creneau);
+            creneau.setDebut(creneauDetails.getDebut());
+            creneau.setFin(creneauDetails.getFin());
+            creneau.setSalle(salle);
+
+            // Check for overlapping creneaux
+            List<Creneau> existingCreneaux = creneauRepository.findBySalle(salle);
+            for (Creneau ex : existingCreneaux) {
+                if (ex.getId() != id && overlaps(creneau, ex)) {
+                    return ResponseEntity.badRequest().body(Map.of("message", "Créneau chevauche un créneau existant"));
+                }
+            }
+
+            Creneau updated = creneauRepository.save(creneau);
+            return ResponseEntity.ok(updated);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
     }
 }

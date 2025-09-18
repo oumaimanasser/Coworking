@@ -34,6 +34,7 @@ public class PaiementController {
                     .body(Map.of("message", "Erreur interne lors de la confirmation du paiement"));
         }
     }
+
     @PostMapping("/annuler/{reservationId}")
     public ResponseEntity<?> annulerPaiement(@PathVariable Long reservationId) {
         try {

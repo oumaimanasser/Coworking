@@ -1,20 +1,11 @@
 package com.esprit.microservice.ms_job_board.models;
 
+import lombok.Getter;
 
-import jakarta.persistence.*;
-import lombok.*;
-
-@NoArgsConstructor
-@AllArgsConstructor
-@RequiredArgsConstructor
-@Entity
 @Getter
-@Setter
-public class Role {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public enum Role {
+    ROLE_ADMIN,
+    ROLE_CLIENT;
 
-    @NonNull
-    private String name; // ex: ROLE_USER, ROLE_ADMIN
+
 }

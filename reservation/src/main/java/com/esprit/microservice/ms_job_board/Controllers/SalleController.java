@@ -3,7 +3,7 @@ package com.esprit.microservice.ms_job_board.Controllers;
 import com.esprit.microservice.ms_job_board.Repositories.SalleRepository;
 import com.esprit.microservice.ms_job_board.models.Salle;
 import com.esprit.microservice.ms_job_board.models.StatutSalle;
-import com.esprit.microservice.ms_job_board.services.ImageStorageService;
+import com.esprit.microservice.ms_job_board.Services.ImageStorageService;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
@@ -11,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import jakarta.validation.Valid;
 
 import java.net.MalformedURLException;
 import java.nio.file.Path;
@@ -32,13 +33,11 @@ public class SalleController {
         this.imageStorageService.init();
     }
 
-    // GET - Récupérer toutes les salles
     @GetMapping
     public List<Salle> getAllSalles() {
         return salleRepository.findAll();
     }
 
-    // GET - Récupérer une salle par ID
     @GetMapping("/{id}")
     public ResponseEntity<Salle> getSalleById(@PathVariable Long id) {
         return salleRepository.findById(id)
@@ -46,9 +45,8 @@ public class SalleController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // POST - Créer une nouvelle salle avec image
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public Salle createSalle(
+    public ResponseEntity<Salle> createSalle(
             @RequestParam("nom") String nom,
             @RequestParam("prix") double prix,
             @RequestParam("capacite") int capacite,
@@ -66,10 +64,10 @@ public class SalleController {
             salle.setImagePath(imagePath);
         }
 
-        return salleRepository.save(salle);
+        Salle saved = salleRepository.save(salle);
+        return ResponseEntity.ok(saved);
     }
 
-    // PUT - Mettre à jour une salle existante
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Salle> updateSalle(
             @PathVariable Long id,
@@ -81,15 +79,12 @@ public class SalleController {
 
         return salleRepository.findById(id)
                 .map(existingSalle -> {
-                    // Mettre à jour les champs de base
                     existingSalle.setNom(nom);
                     existingSalle.setPrix(prix);
                     existingSalle.setCapacite(capacite);
                     existingSalle.setStatus(status);
 
-                    // Gérer l'image si fournie
                     if (image != null && !image.isEmpty()) {
-                        // Supprimer l'ancienne image si elle existe
                         if (existingSalle.getImagePath() != null) {
                             imageStorageService.delete(existingSalle.getImagePath());
                         }
@@ -102,12 +97,10 @@ public class SalleController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // DELETE - Supprimer une salle
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteSalle(@PathVariable Long id) {
         return salleRepository.findById(id)
                 .map(salle -> {
-                    // Supprimer l'image associée si elle existe
                     if (salle.getImagePath() != null) {
                         imageStorageService.delete(salle.getImagePath());
                     }
@@ -117,7 +110,6 @@ public class SalleController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // GET - Servir les images des salles
     @GetMapping("/images/{filename:.+}")
     public ResponseEntity<Resource> serveImage(@PathVariable String filename) {
         try {

@@ -1,4 +1,4 @@
-package com.esprit.microservice.ms_job_board.services;
+package com.esprit.microservice.ms_job_board.Services;
 
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
