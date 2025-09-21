@@ -21,8 +21,9 @@
   background: rgba(255, 255, 255, 0.3);
   backdrop-filter: blur(20px);
   border-radius: 24px;
-  padding: 48px 40px;
+  padding: 40px 32px;
   width: 100%;
+  max-width: 380px;
   box-shadow:
     0 8px 32px rgba(31, 38, 135, 0.15),
     inset 0 1px 0 rgba(255, 255, 255, 0.4),
@@ -57,9 +58,9 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
-.user-icon-svg {
-  width: 32px;
-  height: 32px;
+.user-icon-svg, .input-icon-svg, .password-toggle-svg, .social-btn-svg {
+  width: 24px;
+  height: 24px;
   color: #6b7280;
   opacity: 0.8;
 }
@@ -139,10 +140,20 @@
   pointer-events: none;
 }
 
-.input-icon-svg {
-  width: 18px;
-  height: 18px;
+.password-toggle {
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
   color: #9ca3af;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.password-toggle:hover {
+  color: #6b7280;
 }
 
 .error-message {
@@ -150,6 +161,40 @@
   font-size: 0.8rem;
   margin-top: 8px;
   padding-left: 18px;
+}
+
+.form-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 24px 0 32px 0;
+  font-size: 0.9rem;
+}
+
+.remember-me {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.remember-me input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #6366f1;
+  cursor: pointer;
+}
+
+.forgot-password {
+  color: #6366f1;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.forgot-password:hover {
+  color: #4f46e5;
 }
 
 button[type="submit"] {
@@ -179,7 +224,7 @@ button[type="submit"]:hover:not(:disabled) {
     inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
-button[type极="submit"]:active:not(:disabled) {
+button[type="submit"]:active:not(:disabled) {
   transform: translateY(0);
 }
 
@@ -262,5 +307,11 @@ button[type="submit"]:disabled {
 
   .form-group input, button[type="submit"] {
     padding: 14px 18px 14px 46px;
+  }
+
+  .form-options {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
   }
 }

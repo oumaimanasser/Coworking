@@ -1,0 +1,82 @@
+<div class="profile-container" @fadeInUp>
+  <header class="header">
+    <h2>Espace Personnel</h2>
+    <a routerLink="/home" class="btn-secondary">Retour à l'accueil</a>
+  </header>
+
+  <!-- Messages -->
+  <div class="message success" *ngIf="successMessage" @fadeInOut>{{ successMessage }}</div>
+  <div class="message error" *ngIf="errorMessage" @fadeInOut>{{ errorMessage }}</div>
+
+  <!-- Profile Form -->
+  <section class="profile-section" *ngIf="profile" @fadeInUp>
+    <h3>Modifier mes informations</h3>
+    <form [formGroup]="profileForm" (ngSubmit)="updateProfile()">
+      <div class="form-group">
+        <label for="username">Nom d'utilisateur</label>
+        <input id="username" formControlName="username" class="form-control" />
+        <div *ngIf="profileForm.get('username')?.invalid && profileForm.get('username')?.touched" class="error-message">
+          Le nom d'utilisateur est requis.
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input id="email" formControlName="email" type="email" class="form-control" />
+        <div *ngIf="profileForm.get('email')?.invalid && profileForm.get('email')?.touched" class="error-message">
+          Veuillez entrer un email valide.
+        </div>
+      </div>
+      
+      <button type="submit" class="btn-primary" [disabled]="profileForm.invalid || isSubmitting">
+        <span *ngIf="!isSubmitting">Mettre à jour</span>
+        <span *ngIf="isSubmitting"><i class="fas fa-spinner fa-spin"></i> En cours...</span>
+      </button>
+    </form>
+  </section>
+
+  <!-- Reservation History -->
+  <section class="reservations-section" @fadeInUp>
+    <h3>Historique des réservations et paiements</h3>
+    <div class="reservations-stats" *ngIf="reservationResponse">
+      <p>Total des réservations : {{ reservationResponse.total }}</p>
+      <p>Réservations payées : {{ reservationResponse.paid }}</p>
+      <p>Réservations non payées : {{ reservationResponse.unpaid }}</p>
+    </div>
+    <div *ngIf="reservations.length > 0; else noHistory" @fadeInOut>
+      <table class="reservations-table">
+        <thead>
+          <tr>
+            <th>N° Commande</th>
+            <th>Salle</th>
+            <th>Début</th>
+            <th>Fin</th>
+            <th>Prix</th>
+            <th>Statut</th>
+            <th>Paiement</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let res of reservations">
+            <td data-label="N° Commande">{{ res.id }}</td>
+            <td data-label="Salle">{{ res.nomSalle || 'Salle inconnue' }}</td>
+            <td data-label="Début">{{ formatDisplayDate(res.creneau?.debut) }}</td>
+            <td data-label="Fin">{{ formatDisplayDate(res.creneau?.fin) }}</td>
+            <td data-label="Prix">{{ res.prix }} €</td>
+            <td data-label="Statut" [ngClass]="getStatusClass(res.status)">{{ res.status }}</td>
+            <td data-label="Paiement" [ngClass]="getPaiementClass(res.paiementStatus)">{{ res.paiementStatus }}</td>
+            <td data-label="Actions">
+              <button class="btn-danger" (click)="deleteReservation(res.id)" [disabled]="isSubmitting">
+                <span *ngIf="!isSubmitting">Supprimer</span>
+                <span *ngIf="isSubmitting"><i class="fas fa-spinner fa-spin"></i> Suppression...</span>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <ng-template #noHistory>
+      <p>Aucune réservation trouvée.</p>
+    </ng-template>
+  </section>
+</div>

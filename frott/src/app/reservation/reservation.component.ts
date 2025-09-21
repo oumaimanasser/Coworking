@@ -18,11 +18,10 @@ export interface Salle {
 }
 
 export interface Creneau {
-  id: number;
+  id: number | null;
   debut: string;
   fin: string;
   salle: Salle;
-  personnalise?: string;
 }
 
 export interface Reservation {
@@ -31,7 +30,7 @@ export interface Reservation {
   clientName: string;
   clientEmail: string;
   salle: { id: number };
-  creneau: { id: number };
+  creneau: Creneau;
   dateReservation: string;
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
   paiementStatus: 'EN_ATTENTE' | 'PAYEE' | 'ANNULE';
@@ -114,8 +113,7 @@ export class ReservationComponent implements OnInit {
     ).subscribe({
       next: (data) => {
         this.creneaux = data
-          .filter(c => c.salle.id === this.selectedSalle!.id)
-          .map(c => ({ ...c, personnalise: c.personnalise || '' }));
+          .filter(c => c.salle.id === this.selectedSalle!.id);
         this.isLoading = false;
       }
     });
@@ -234,50 +232,36 @@ export class ReservationComponent implements OnInit {
       return;
     }
 
+    // Construct creneau payload
+    let creneauPayload: Creneau = { id: null, debut: '', fin: '', salle: { id: 0, nom: '', capacite: 0, prix: 0 } }; 
+    if (this.useCustomCreneau) {
+      creneauPayload.debut = new Date(this.creneauPersonnalise.debut).toISOString();
+      creneauPayload.fin = new Date(this.creneauPersonnalise.fin).toISOString();
+      creneauPayload.salle = this.selectedSalle!;
+      creneauPayload.id = null; // For custom, id null to trigger creation in backend
+    } else {
+      const selected = this.getSelectedCreneau();
+      if (selected) {
+        creneauPayload = selected;
+      }
+    }
+
     // Construct reservation payload
     const reservationPayload: Reservation = {
       nombrePersonnes: this.nombrePersonnes,
       clientName: this.currentUser!.username,
-      clientEmail: this.currentUser!.email,
+      clientEmail: this.currentUser!.email.toLowerCase(),
       salle: { id: this.selectedSalle!.id },
-      creneau: { id: this.useCustomCreneau ? 0 : this.selectedCreneau! },
+      creneau: creneauPayload,
       dateReservation: new Date().toISOString(),
       status: 'PENDING',
       paiementStatus: 'EN_ATTENTE'
     };
 
-    if (this.useCustomCreneau) {
-      const creneauPayload = {
-        debut: new Date(this.creneauPersonnalise.debut).toISOString(),
-        fin: new Date(this.creneauPersonnalise.fin).toISOString(),
-        salle: { id: this.selectedSalle!.id },
-        personnalise: ''
-      };
-
-      console.log('Sending creneau payload:', JSON.stringify(creneauPayload, null, 2)); // Debug
-      this.http.post<Creneau>(`${this.apiUrl}/creneaux`, creneauPayload, { headers }).pipe(
-        catchError(err => this.handleHttpError(err, 'Erreur lors de la création du créneau'))
-      ).subscribe({
-        next: (creneau) => {
-          reservationPayload.creneau = { id: creneau.id };
-          this.createReservation(reservationPayload, headers);
-        }
-      });
-    } else {
-      this.createReservation(reservationPayload, headers);
-    }
-  }
-
-  private getAuthHeaders(): HttpHeaders {
-    const headers = this.authService.getAuthHeaders();
-    console.log('Auth Headers:', headers.get('Authorization')); // Debug
-    return headers;
-  }
-
-  private createReservation(payload: Reservation, headers: HttpHeaders): void {
     console.log('Sending to URL:', `${this.apiUrl}/reservations`); // Debug
-    console.log('Reservation payload:', JSON.stringify(payload, null, 2)); // Debug
-    this.http.post<Reservation>(`${this.apiUrl}/reservations`, payload, { headers }).pipe(
+    console.log('Reservation payload:', JSON.stringify(reservationPayload, null, 2)); // Debug
+
+    this.http.post<Reservation>(`${this.apiUrl}/reservations`, reservationPayload, { headers }).pipe(
       catchError(err => this.handleHttpError(err, 'Erreur lors de la création de la réservation'))
     ).subscribe({
       next: (response) => {
@@ -289,6 +273,12 @@ export class ReservationComponent implements OnInit {
         this.resetForm();
       }
     });
+  }
+
+  private getAuthHeaders(): HttpHeaders {
+    const headers = this.authService.getAuthHeaders();
+    console.log('Auth Headers:', headers.get('Authorization')); // Debug
+    return headers;
   }
 
   private handleHttpError(err: any, defaultMessage: string): Observable<never> {

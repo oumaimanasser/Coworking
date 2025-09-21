@@ -15,6 +15,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.esprit.microservice.ms_job_board.Repositories.SalleRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -23,6 +25,8 @@ import java.util.Optional;
 @Service
 @Transactional
 public class ReservationService {
+
+    private static final Logger logger = LoggerFactory.getLogger(ReservationService.class);
 
     private final ReservationRepository reservationRepository;
     private final SalleRepository salleRepository;
@@ -45,11 +49,12 @@ public class ReservationService {
     }
 
     public Reservation createReservation(Reservation reservation) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé dans la base: " + username));
+        String email = SecurityContextHolder.getContext().getAuthentication().getName().toLowerCase();
+        logger.info("Authenticating user with email: {}", email);
+        User user = userRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé dans la base: " + email));
 
-        reservation.setClientEmail(user.getEmail());
+        reservation.setClientEmail(user.getEmail().toLowerCase());
         reservation.setClientName(user.getUsername());
 
         Salle salle = salleRepository.findById(reservation.getSalle().getId())
@@ -61,18 +66,17 @@ public class ReservationService {
             creneau.setDebut(reservation.getCreneau().getDebut());
             creneau.setFin(reservation.getCreneau().getFin());
             creneau.setSalle(salle);
-
+            // Validation des dates
             if (creneau.getDebut() == null || creneau.getFin() == null || creneau.getDebut().isAfter(creneau.getFin())) {
                 throw new IllegalArgumentException("Dates invalides pour le créneau personnalisé");
             }
-
             List<Creneau> existingCreneaux = creneauRepository.findBySalle(salle);
             for (Creneau ex : existingCreneaux) {
                 if (overlaps(creneau, ex)) {
+                    logger.error("Conflit de créneau détecté: {} chevauche {}", creneau, ex);
                     throw new RuntimeException("Le créneau personnalisé chevauche un créneau existant");
                 }
             }
-
             creneau = creneauRepository.save(creneau);
         } else {
             creneau = creneauRepository.findById(reservation.getCreneau().getId())
@@ -87,6 +91,7 @@ public class ReservationService {
         }
 
         if (reservationRepository.existsBySalleAndCreneau(salle, creneau)) {
+            logger.error("Conflit: Réservation existante pour salle {} et créneau {}", salle.getId(), creneau.getId());
             throw new RuntimeException("Ce créneau est déjà réservé");
         }
 
@@ -97,7 +102,7 @@ public class ReservationService {
         reservation.setSalle(salle);
         reservation.setCreneau(creneau);
         reservation.setDateReservation(LocalDateTime.now());
-        reservation.setStatus(ReservationStatus.PENDING);
+        reservation.setStatus(ReservationStatus.CONFIRMED);
         reservation.setPaiementStatus(PaiementStatus.EN_ATTENTE);
 
         return reservationRepository.save(reservation);
@@ -107,9 +112,6 @@ public class ReservationService {
         Reservation reservation = reservationRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Réservation non trouvée"));
 
-        if (reservation.getStatus() != ReservationStatus.PENDING) {
-            throw new RuntimeException("Seule une réservation en attente peut être confirmée");
-        }
 
         Salle salle = reservation.getSalle();
         if (salle.getStatus() != StatutSalle.DISPONIBLE) {
@@ -130,9 +132,6 @@ public class ReservationService {
         boolean isAdmin = false; // Implement admin check if needed
         if (!reservation.getClientName().equals(currentUsername) && !isAdmin) {
             throw new RuntimeException("Non autorisé à modifier cette réservation");
-        }
-        if (reservation.getStatus() != ReservationStatus.PENDING) {
-            throw new RuntimeException("Seule une réservation en attente peut être modifiée");
         }
 
         if (updatedDetails.getNombrePersonnes() > 0) {
@@ -204,12 +203,9 @@ public class ReservationService {
     }
 
     public List<Reservation> filtrerReservationsParDate(LocalDate start, LocalDate end) {
-        return reservationRepository.findAll().stream()
-                .filter(r -> {
-                    LocalDate reservationDate = r.getCreneau().getDebut().toLocalDate();
-                    return !reservationDate.isBefore(start) && !reservationDate.isAfter(end);
-                })
-                .toList();
+        LocalDateTime startDateTime = start.atStartOfDay();
+        LocalDateTime endDateTime = end.plusDays(1).atStartOfDay();
+        return reservationRepository.findByCreneauDebutBetween(startDateTime, endDateTime);
     }
 
     public List<Reservation> getReservationsAvecPaiementEnAttente() {

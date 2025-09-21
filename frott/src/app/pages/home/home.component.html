@@ -9,19 +9,30 @@
         <h1>WH<span class="logo-o">O</span>RKS</h1>
       </div>
       <nav class="nav">
-        <a routerLink="/reservation" class="btn-primary">
+        <a routerLink="/reservation" class="btn-primary" (click)="trackInteraction('navigate-reservation')">
           <i class="fas fa-calendar-alt"></i>
           <span>RÉSERVER UNE SALLE</span>
         </a>
-        <a routerLink="/login" class="btn-login">
+        <div *ngIf="isLoggedIn()" class="user-info">
+          Bienvenue, {{ getUserName() }}
+        </div>
+        <a *ngIf="!isLoggedIn()" routerLink="/login" class="btn-login" (click)="trackInteraction('navigate-login')">
           <i class="fas fa-sign-in-alt"></i>
           <span>SE CONNECTER</span>
         </a>
-        <a routerLink="/register" class="btn-register">
+        <a *ngIf="!isLoggedIn()" routerLink="/register" class="btn-register" (click)="trackInteraction('navigate-register')">
           <i class="fas fa-user-plus"></i>
           <span>S'INSCRIRE</span>
         </a>
-        <a routerLink="/home" class="btn-secondary" (click)="scrollToContact()">
+        <a *ngIf="isLoggedIn()" routerLink="/profile" class="btn-primary" (click)="trackInteraction('navigate-profile')">
+          <i class="fas fa-user"></i>
+          <span>ESPACE PERSONNEL</span>
+        </a>
+        <a *ngIf="isLoggedIn()" (click)="logout()" class="btn-logout" role="button" aria-label="Se déconnecter" (click)="trackInteraction('logout')">
+          <i class="fas fa-sign-out-alt"></i>
+          <span>SE DÉCONNECTER</span>
+        </a>
+        <a routerLink="/home" class="btn-secondary" (click)="scrollToContact(); trackInteraction('scroll-contact')">
           <i class="fas fa-envelope"></i>
           <span>CONTACT</span>
         </a>
@@ -128,10 +139,8 @@
         <div class="space-image-container">
           <img *ngIf="salle && salle.nom && salle.capacite && salle.prix"
                [src]="getImageUrl(salle.imagePath, salle.type)"
-               (error)="onImageError($event, salle.type)"
-               alt="Espace de coworking WHORKS - Salle en cours de chargement"
-               [attr.alt]="'Espace de travail ' + (salle.nom || 'Salle inconnue') + ' - Capacité ' + (salle.capacite || 'N/A') + ' personnes'"
-               title="Espace de coworking WHORKS - Cliquez pour réserver"
+               (error)="onImageError($event, salle.type, salle.nom)"
+               alt="Espace de coworking WHORKS - {{ salle.nom || 'Salle inconnue' }}"
                [attr.title]="'Réserver ' + (salle.nom || 'Salle inconnue') + ' - €' + (salle.prix || 'N/A') + '/heure'"
                [attr.aria-label]="'Image de l\'espace de coworking ' + (salle.nom || 'inconnu')"
                class="space-image"
@@ -155,9 +164,11 @@
         <div class="space-info">
           <div class="space-header">
             <h3>{{ salle.nom }}</h3>
-            <div class="rating" role="img" [attr.aria-label]="'Note: 4.8 étoiles sur 5'">
-              <i class="fas fa-star" *ngFor="let star of [1,2,3,4,5]" [attr.aria-hidden]="true"></i>
-              <span>4.8</span>
+            <div class="rating" role="img" [attr.aria-label]="'Note: ' + (salle.rating || 'N/A') + ' étoiles sur 5'">
+              <i class="fas fa-star" *ngFor="let star of [1,2,3,4,5]" 
+                 [ngClass]="{'filled': star <= (salle.rating || 0)}" 
+                 [attr.aria-hidden]="true"></i>
+              <span>{{ salle.rating || 'N/A' }}</span>
             </div>
           </div>
           
@@ -206,8 +217,8 @@
         <i class="fas fa-search" aria-hidden="true"></i>
         <h3>{{ errorMessage || 'Aucune salle disponible pour le moment.' }}</h3>
         <p>Essayez de modifier vos critères de recherche ou revenez plus tard.</p>
-        <button class="btn-primary" (click)="loadSalles()">
-          <i class="fas fa-refresh" aria-hidden="true"></i>
+        <button class="btn-primary" (click)="refreshData()">
+          <i class="fas fa-sync" aria-hidden="true"></i>
           Actualiser
         </button>
       </div>
@@ -359,7 +370,7 @@
                 [class.loading]="isSubmittingContact"
                 [attr.aria-label]="isSubmittingContact ? 'Envoi du message en cours' : 'Envoyer le message'">
           <span *ngIf="!isSubmittingContact">
-            <i class="fas fa-send" aria-hidden="true"></i>
+            <i class="fas fa-paper-plane" aria-hidden="true"></i>
             Envoyer le message
           </span>
           <span *ngIf="isSubmittingContact">
@@ -442,7 +453,7 @@
           </a>
         </div>
         
-        <!-- Newsletter with Fixed Image -->
+        <!-- Newsletter -->
         <div class="newsletter">
           <h5>Newsletter</h5>
           <div class="newsletter-image-container">

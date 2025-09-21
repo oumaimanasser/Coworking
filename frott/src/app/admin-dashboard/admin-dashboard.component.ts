@@ -1,9 +1,10 @@
 import { Component, OnInit } from '@angular/core';
-import {FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule} from '@angular/forms';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { CommonModule, DatePipe } from '@angular/common';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { AuthService } from '../services/auth.service';
 import { Router } from '@angular/router';
+import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 
 export interface Salle {
   id?: number;
@@ -68,7 +69,8 @@ export class AdminDashboardComponent implements OnInit {
   editingSalle: Salle | null = null;
   editingUser: User | null = null;
   selectedFile: File | null = null;
-  private apiUrl = 'http://localhost:9090';
+  errorMessage: string = '';
+  public apiUrl = 'http://localhost:9090';
   resetEmail: string = '';
   resetToken: string | null = null;
   newPassword: string = '';
@@ -78,7 +80,8 @@ export class AdminDashboardComponent implements OnInit {
     private http: HttpClient,
     private authService: AuthService,
     private router: Router,
-    private datePipe: DatePipe
+    private datePipe: DatePipe,
+    private sanitizer: DomSanitizer
   ) {
     this.loginForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
@@ -122,7 +125,7 @@ export class AdminDashboardComponent implements OnInit {
       id: [''],
       username: ['', [Validators.required, Validators.minLength(3)]],
       email: ['', [Validators.required, Validators.email]],
-      password: [''] // Optionnel lors de la modification
+      password: [''] // Optional during edit
     });
   }
 
@@ -145,7 +148,7 @@ export class AdminDashboardComponent implements OnInit {
 
   login(): void {
     if (!this.loginForm.valid) {
-      alert('Veuillez remplir tous les champs correctement.');
+      this.errorMessage = 'Veuillez remplir tous les champs correctement.';
       return;
     }
     const { email, password } = this.loginForm.value;
@@ -153,11 +156,12 @@ export class AdminDashboardComponent implements OnInit {
       next: (res: any) => {
         localStorage.setItem('token', res.token);
         this.currentPage = 'dashboard';
+        this.errorMessage = '';
         this.loadAllData();
       },
       error: (err) => {
         console.error('Erreur login:', err);
-        alert('Email ou mot de passe incorrect.');
+        this.errorMessage = 'Email ou mot de passe incorrect.';
       }
     });
   }
@@ -171,6 +175,7 @@ export class AdminDashboardComponent implements OnInit {
   showPage(page: 'dashboard' | 'reservations' | 'creneaux' | 'salles' | 'paiements' | 'users'): void {
     this.currentPage = page;
     this.cancelEdit();
+    this.errorMessage = '';
     if (page === 'paiements') {
       this.loadReservationsAvecPaiementEnAttente();
       this.loadReservationsPayees();
@@ -182,11 +187,14 @@ export class AdminDashboardComponent implements OnInit {
   private getAuthHeaders(): HttpHeaders | null {
     const token = localStorage.getItem('token');
     if (!token) {
-      alert('Session expirée. Veuillez vous reconnecter.');
+      this.errorMessage = 'Session expirée. Veuillez vous reconnecter.';
       this.logout();
       return null;
     }
-    return new HttpHeaders({ Authorization: `Bearer ${token}` });
+    return new HttpHeaders({
+      Authorization: `Bearer ${token}`
+      // CSRF token is automatically added by HttpClientXsrfModule
+    });
   }
 
   loadAllData(): void {
@@ -208,9 +216,9 @@ export class AdminDashboardComponent implements OnInit {
       error: (err) => {
         console.error('Erreur chargement salles:', err);
         if (err.status === 401 || err.status === 403) {
-          this.handleAuthError();
+          this.handleAuthError(err.status);
         } else {
-          alert('Erreur lors du chargement des salles.');
+          this.errorMessage = 'Erreur lors du chargement des salles.';
         }
       }
     });
@@ -233,9 +241,9 @@ export class AdminDashboardComponent implements OnInit {
       error: (err) => {
         console.error('Erreur chargement créneaux:', err);
         if (err.status === 401 || err.status === 403) {
-          this.handleAuthError();
+          this.handleAuthError(err.status);
         } else {
-          alert('Erreur lors du chargement des créneaux.');
+          this.errorMessage = 'Erreur lors du chargement des créneaux.';
         }
       }
     });
@@ -253,59 +261,79 @@ export class AdminDashboardComponent implements OnInit {
       error: (err) => {
         console.error('Erreur chargement réservations:', err);
         if (err.status === 401 || err.status === 403) {
-          this.handleAuthError();
+          this.handleAuthError(err.status);
         } else {
-          alert('Erreur lors du chargement des réservations.');
+          this.errorMessage = 'Erreur lors du chargement des réservations.';
         }
       }
     });
   }
 
   onFileSelected(event: any): void {
-    this.selectedFile = event.target.files[0] as File;
+    const file = event.target.files[0] as File;
+    if (file && file.type.startsWith('image/')) {
+      this.selectedFile = file;
+      this.errorMessage = '';
+    } else {
+      this.selectedFile = null;
+      this.errorMessage = 'Veuillez sélectionner une image valide (JPEG, PNG, etc.).';
+    }
   }
 
-  getImageUrl(imagePath?: string): string {
-    if (!imagePath) return '';
-    const filename = imagePath.split('/').pop() || imagePath;
-    return `${this.apiUrl}/salles/images/${filename}`;
+  getImageUrl(imagePath?: string): SafeUrl {
+    if (!imagePath || imagePath.trim() === '') {
+      console.warn('No imagePath provided; using placeholder');
+      return this.sanitizer.bypassSecurityTrustUrl('https://via.placeholder.com/150?text=Image+Not+Found');
+    }
+    const fullUrl = `${this.apiUrl}/salles/images/${encodeURIComponent(imagePath)}`;
+    console.debug(`Constructed image URL: ${fullUrl}`);
+    return this.sanitizer.bypassSecurityTrustUrl(fullUrl);
   }
 
   onImageError(event: Event): void {
     const imgElement = event.target as HTMLImageElement;
-    console.warn('Image non trouvée:', imgElement.src);
-    imgElement.style.display = 'none';
+    console.warn(`Image non trouvée: ${imgElement.src}`);
+    imgElement.src = 'https://via.placeholder.com/150?text=Image+Not+Found';
+    imgElement.classList.add('image-error');
   }
 
   addSalle(): void {
     if (!this.newSalleForm.valid) {
-      alert('Veuillez remplir tous les champs de la salle correctement.');
+      this.errorMessage = 'Veuillez remplir tous les champs de la salle correctement.';
       return;
     }
+
+    const formData = new FormData();
+    formData.append('nom', this.newSalleForm.get('nom')!.value);
+    formData.append('capacite', this.newSalleForm.get('capacite')!.value.toString());
+    formData.append('prix', this.newSalleForm.get('prix')!.value.toString());
+    formData.append('status', this.newSalleForm.get('status')!.value);
+    if (this.selectedFile) {
+      formData.append('image', this.selectedFile);
+    }
+
     const headers = this.getAuthHeaders();
     if (!headers) return;
 
-    const formData = new FormData();
-    formData.append('nom', this.newSalleForm.get('nom')?.value);
-    formData.append('capacite', String(this.newSalleForm.get('capacite')?.value));
-    formData.append('prix', String(this.newSalleForm.get('prix')?.value));
-    formData.append('status', this.newSalleForm.get('status')?.value);
-    if (this.selectedFile) formData.append('image', this.selectedFile);
-
     this.http.post<Salle>(`${this.apiUrl}/salles`, formData, { headers }).subscribe({
-      next: (res) => {
-        this.salles.push(res);
-        this.newSalleForm.reset({ status: 'DISPONIBLE' });
+      next: (response) => {
+        console.log('Salle ajoutée avec succès:', response);
+        this.salles.push(response);
+        this.newSalleForm.reset();
         this.selectedFile = null;
-        this.loadSalles();
-        alert('Salle ajoutée avec succès.');
+        this.errorMessage = 'Salle ajoutée avec succès.';
       },
       error: (err) => {
         console.error('Erreur ajout salle:', err);
-        if (err.status === 401 || err.status === 403) {
-          this.handleAuthError();
+        console.error('Détails de l\'erreur:', err.error);
+        if (err.status === 401) {
+          this.errorMessage = 'Session expirée. Veuillez vous reconnecter.';
+          this.logout();
+        } else if (err.status === 403) {
+          this.errorMessage = 'Accès interdit : Vérifiez vos permissions ou la configuration CSRF.';
+          console.error('Vérifiez si le token CSRF est envoyé. Headers envoyés:', headers);
         } else {
-          alert('Erreur lors de l’ajout de la salle.');
+          this.errorMessage = `Erreur lors de l\'ajout de la salle: ${err.error?.message || 'Vérifiez les données.'}`;
         }
       }
     });
@@ -325,55 +353,80 @@ export class AdminDashboardComponent implements OnInit {
 
   updateSalle(): void {
     if (!this.editSalleForm.valid || !this.editingSalle?.id) {
-      alert('Veuillez remplir tous les champs correctement.');
+      this.errorMessage = 'Veuillez remplir tous les champs correctement.';
       return;
     }
-    const headers = this.getAuthHeaders();
-    if (!headers) return;
 
     const formData = new FormData();
-    formData.append('nom', this.editSalleForm.get('nom')?.value);
-    formData.append('capacite', String(this.editSalleForm.get('capacite')?.value));
-    formData.append('prix', String(this.editSalleForm.get('prix')?.value));
-    formData.append('status', this.editSalleForm.get('status')?.value);
-    if (this.selectedFile) formData.append('image', this.selectedFile);
+    formData.append('nom', this.editSalleForm.get('nom')!.value);
+    formData.append('capacite', this.editSalleForm.get('capacite')!.value.toString());
+    formData.append('prix', this.editSalleForm.get('prix')!.value.toString());
+    formData.append('status', this.editSalleForm.get('status')!.value);
+    if (this.selectedFile) {
+      formData.append('image', this.selectedFile);
+    }
+
+    // Log FormData for debugging
+    console.debug('FormData payload:', Array.from((formData as any).entries()));
+
+    const headers = this.getAuthHeaders();
+    if (!headers) {
+      this.errorMessage = 'Aucun token d\'authentification trouvé.';
+      return;
+    }
 
     this.http.put<Salle>(`${this.apiUrl}/salles/${this.editingSalle.id}`, formData, { headers }).subscribe({
       next: (res) => {
         const index = this.salles.findIndex(s => s.id === res.id);
-        if (index !== -1) this.salles[index] = res;
+        if (index !== -1) {
+          this.salles[index] = res;
+        }
         this.cancelEdit();
-        this.loadSalles();
-        alert('Salle modifiée avec succès.');
+        this.errorMessage = 'Salle modifiée avec succès.';
       },
       error: (err) => {
-        console.error('Erreur modification salle:', err);
-        if (err.status === 401 || err.status === 403) {
-          this.handleAuthError();
+        console.error('Erreur lors de la modification de la salle:', err);
+        console.error('Détails de l\'erreur:', err.error);
+        if (err.status === 401) {
+          this.errorMessage = 'Session expirée. Veuillez vous reconnecter.';
+          this.logout();
+        } else if (err.status === 403) {
+          this.errorMessage = 'Accès interdit : Vérifiez vos permissions ou la configuration CSRF.';
+          console.error('Vérifiez si le token CSRF est envoyé. Headers envoyés:', headers);
         } else {
-          alert('Erreur lors de la modification de la salle.');
+          this.errorMessage = `Erreur lors de la modification de la salle: ${err.error?.message || 'Vérifiez les données.'}`;
         }
       }
     });
   }
 
   deleteSalle(id?: number): void {
-    if (!id || !confirm('Êtes-vous sûr de vouloir supprimer cette salle ?')) return;
+    if (!id || !confirm('Êtes-vous sûr de vouloir supprimer cette salle ?')) {
+      return;
+    }
+
     const headers = this.getAuthHeaders();
-    if (!headers) return;
+    if (!headers) {
+      this.errorMessage = 'Aucun token d\'authentification trouvé.';
+      return;
+    }
 
     this.http.delete(`${this.apiUrl}/salles/${id}`, { headers }).subscribe({
       next: () => {
         this.salles = this.salles.filter(s => s.id !== id);
-        this.loadSalles();
-        alert('Salle supprimée avec succès.');
+        this.errorMessage = 'Salle supprimée avec succès.';
       },
       error: (err) => {
-        console.error('Erreur suppression salle:', err);
-        if (err.status === 401 || err.status === 403) {
-          this.handleAuthError();
+        console.error('Erreur lors de la suppression de la salle:', err);
+        console.error('Détails de l\'erreur:', err.error);
+        if (err.status === 401) {
+          this.errorMessage = 'Session expirée. Veuillez vous reconnecter.';
+          this.logout();
+        } else if (err.status === 403) {
+          this.errorMessage = 'Accès interdit : Vérifiez vos permissions ou la configuration CSRF.';
+          console.error('Vérifiez si le token CSRF est envoyé. Headers envoyés:', headers);
         } else {
-          alert('Erreur lors de la suppression de la salle.');
+          this.errorMessage = `Erreur lors de la suppression de la salle: ${err.error?.message || 'Vérifiez les données.'}`;
         }
       }
     });
@@ -381,7 +434,7 @@ export class AdminDashboardComponent implements OnInit {
 
   addCreneau(): void {
     if (!this.newCreneauForm.valid) {
-      alert('Veuillez remplir tous les champs du créneau correctement.');
+      this.errorMessage = 'Veuillez remplir tous les champs du créneau correctement.';
       return;
     }
     const headers = this.getAuthHeaders();
@@ -401,14 +454,14 @@ export class AdminDashboardComponent implements OnInit {
         if (salleComplete) res.salle = salleComplete;
         this.creneaux.push(res);
         this.newCreneauForm.reset();
-        alert('Créneau ajouté avec succès.');
+        this.errorMessage = 'Créneau ajouté avec succès.';
       },
       error: (err) => {
         console.error('Erreur ajout créneau:', err);
         if (err.status === 401 || err.status === 403) {
-          this.handleAuthError();
+          this.handleAuthError(err.status);
         } else {
-          alert('Erreur lors de l’ajout du créneau: ' + (err.error?.message || 'Vérifiez les données saisies.'));
+          this.errorMessage = `Erreur lors de l’ajout du créneau: ${err.error?.message || 'Vérifiez les données.'}`;
         }
       }
     });
@@ -425,7 +478,7 @@ export class AdminDashboardComponent implements OnInit {
 
   updateCreneau(): void {
     if (!this.editCreneauForm.valid || !this.editingCreneau?.id) {
-      alert('Veuillez remplir tous les champs correctement.');
+      this.errorMessage = 'Veuillez remplir tous les champs correctement.';
       return;
     }
     const headers = this.getAuthHeaders();
@@ -446,14 +499,14 @@ export class AdminDashboardComponent implements OnInit {
         const index = this.creneaux.findIndex(c => c.id === res.id);
         if (index !== -1) this.creneaux[index] = res;
         this.cancelEdit();
-        alert('Créneau modifié avec succès.');
+        this.errorMessage = 'Créneau modifié avec succès.';
       },
       error: (err) => {
         console.error('Erreur modification créneau:', err);
         if (err.status === 401 || err.status === 403) {
-          this.handleAuthError();
+          this.handleAuthError(err.status);
         } else {
-          alert('Erreur lors de la modification du créneau: ' + (err.error?.message || 'Vérifiez les données saisies.'));
+          this.errorMessage = `Erreur lors de la modification du créneau: ${err.error?.message || 'Vérifiez les données.'}`;
         }
       }
     });
@@ -467,14 +520,14 @@ export class AdminDashboardComponent implements OnInit {
     this.http.delete(`${this.apiUrl}/creneaux/${id}`, { headers }).subscribe({
       next: () => {
         this.creneaux = this.creneaux.filter(c => c.id !== id);
-        alert('Créneau supprimé avec succès.');
+        this.errorMessage = 'Créneau supprimé avec succès.';
       },
       error: (err) => {
         console.error('Erreur suppression créneau:', err);
         if (err.status === 401 || err.status === 403) {
-          this.handleAuthError();
+          this.handleAuthError(err.status);
         } else {
-          alert('Erreur lors de la suppression du créneau: ' + (err.error?.message || 'Vérifiez les données saisies.'));
+          this.errorMessage = `Erreur lors de la suppression du créneau: ${err.error?.message || 'Vérifiez les données.'}`;
         }
       }
     });
@@ -488,14 +541,14 @@ export class AdminDashboardComponent implements OnInit {
     this.http.delete(`${this.apiUrl}/reservations/${id}`, { headers }).subscribe({
       next: () => {
         this.reservations = this.reservations.filter(r => r.id !== id);
-        alert('Réservation annulée avec succès.');
+        this.errorMessage = 'Réservation annulée avec succès.';
       },
       error: (err) => {
         console.error('Erreur annulation réservation:', err);
         if (err.status === 401 || err.status === 403) {
-          this.handleAuthError();
+          this.handleAuthError(err.status);
         } else {
-          alert('Erreur lors de l’annulation de la réservation: ' + (err.error?.message || 'Vérifiez les données saisies.'));
+          this.errorMessage = `Erreur lors de l’annulation de la réservation: ${err.error?.message || 'Vérifiez les données.'}`;
         }
       }
     });
@@ -513,9 +566,9 @@ export class AdminDashboardComponent implements OnInit {
       error: (err) => {
         console.error('Erreur chargement réservations en attente:', err);
         if (err.status === 401 || err.status === 403) {
-          this.handleAuthError();
+          this.handleAuthError(err.status);
         } else {
-          alert('Erreur lors du chargement des réservations en attente.');
+          this.errorMessage = 'Erreur lors du chargement des réservations en attente.';
         }
       }
     });
@@ -533,9 +586,9 @@ export class AdminDashboardComponent implements OnInit {
       error: (err) => {
         console.error('Erreur chargement réservations payées:', err);
         if (err.status === 401 || err.status === 403) {
-          this.handleAuthError();
+          this.handleAuthError(err.status);
         } else {
-          alert('Erreur lors du chargement des réservations payées.');
+          this.errorMessage = 'Erreur lors du chargement des réservations payées.';
         }
       }
     });
@@ -548,7 +601,7 @@ export class AdminDashboardComponent implements OnInit {
 
     this.http.post(`${this.apiUrl}/paiements/confirmer/${reservationId}`, {}, { headers }).subscribe({
       next: () => {
-        alert('Paiement confirmé avec succès.');
+        this.errorMessage = 'Paiement confirmé avec succès.';
         this.loadReservationsAvecPaiementEnAttente();
         this.loadReservationsPayees();
         this.loadReservations();
@@ -556,9 +609,9 @@ export class AdminDashboardComponent implements OnInit {
       error: (err) => {
         console.error('Erreur confirmation paiement:', err);
         if (err.status === 401 || err.status === 403) {
-          this.handleAuthError();
+          this.handleAuthError(err.status);
         } else {
-          alert('Erreur lors de la confirmation du paiement: ' + (err.error?.message || 'Vérifiez les données saisies.'));
+          this.errorMessage = `Erreur lors de la confirmation du paiement: ${err.error?.message || 'Vérifiez les données.'}`;
         }
       }
     });
@@ -571,7 +624,7 @@ export class AdminDashboardComponent implements OnInit {
 
     this.http.post(`${this.apiUrl}/paiements/annuler/${reservationId}`, {}, { headers }).subscribe({
       next: () => {
-        alert('Paiement annulé avec succès.');
+        this.errorMessage = 'Paiement annulé avec succès.';
         this.loadReservationsAvecPaiementEnAttente();
         this.loadReservationsPayees();
         this.loadReservations();
@@ -579,9 +632,9 @@ export class AdminDashboardComponent implements OnInit {
       error: (err) => {
         console.error('Erreur annulation paiement:', err);
         if (err.status === 401 || err.status === 403) {
-          this.handleAuthError();
+          this.handleAuthError(err.status);
         } else {
-          alert('Erreur lors de l’annulation du paiement: ' + (err.error?.message || 'Vérifiez les données saisies.'));
+          this.errorMessage = `Erreur lors de l’annulation du paiement: ${err.error?.message || 'Vérifiez les données.'}`;
         }
       }
     });
@@ -646,9 +699,13 @@ export class AdminDashboardComponent implements OnInit {
     }
   }
 
-  private handleAuthError(): void {
-    alert('Session expirée. Veuillez vous reconnecter.');
-    this.logout();
+  private handleAuthError(status: number): void {
+    if (status === 401) {
+      this.errorMessage = 'Session expirée. Veuillez vous reconnecter.';
+      this.logout();
+    } else if (status === 403) {
+      this.errorMessage = 'Accès interdit : Vous n\'avez pas les permissions nécessaires ou problème avec CSRF.';
+    }
   }
 
   getUserRolesDisplay(user: User): string {
@@ -667,9 +724,9 @@ export class AdminDashboardComponent implements OnInit {
       error: (err) => {
         console.error('Erreur chargement utilisateurs:', err);
         if (err.status === 401 || err.status === 403) {
-          this.handleAuthError();
+          this.handleAuthError(err.status);
         } else {
-          alert('Erreur lors du chargement des utilisateurs.');
+          this.errorMessage = 'Erreur lors du chargement des utilisateurs.';
         }
       }
     });
@@ -677,7 +734,7 @@ export class AdminDashboardComponent implements OnInit {
 
   addUser(): void {
     if (!this.newUserForm.valid) {
-      alert('Veuillez remplir tous les champs de l\'utilisateur correctement.');
+      this.errorMessage = 'Veuillez remplir tous les champs de l\'utilisateur correctement.';
       return;
     }
     const headers = this.getAuthHeaders();
@@ -688,14 +745,14 @@ export class AdminDashboardComponent implements OnInit {
       next: (res: User) => {
         this.users.push(res);
         this.newUserForm.reset();
-        alert('Utilisateur ajouté avec succès.');
+        this.errorMessage = 'Utilisateur ajouté avec succès.';
       },
       error: (err) => {
         console.error('Erreur ajout utilisateur:', err);
         if (err.status === 401 || err.status === 403) {
-          this.handleAuthError();
+          this.handleAuthError(err.status);
         } else {
-          alert('Erreur lors de l\'ajout de l\'utilisateur: ' + (err.error?.message || 'Vérifiez les données saisies.'));
+          this.errorMessage = `Erreur lors de l\'ajout de l\'utilisateur: ${err.error?.message || 'Vérifiez les données.'}`;
         }
       }
     });
@@ -713,7 +770,7 @@ export class AdminDashboardComponent implements OnInit {
 
   updateUser(): void {
     if (!this.editUserForm.valid || !this.editingUser?.id) {
-      alert('Veuillez remplir tous les champs correctement.');
+      this.errorMessage = 'Veuillez remplir tous les champs correctement.';
       return;
     }
     const headers = this.getAuthHeaders();
@@ -725,14 +782,14 @@ export class AdminDashboardComponent implements OnInit {
         const index = this.users.findIndex(u => u.id === res.id);
         if (index !== -1) this.users[index] = res;
         this.cancelEdit();
-        alert('Utilisateur modifié avec succès.');
+        this.errorMessage = 'Utilisateur modifié avec succès.';
       },
       error: (err) => {
         console.error('Erreur modification utilisateur:', err);
         if (err.status === 401 || err.status === 403) {
-          this.handleAuthError();
+          this.handleAuthError(err.status);
         } else {
-          alert('Erreur lors de la modification de l\'utilisateur: ' + (err.error?.message || 'Vérifiez les données saisies.'));
+          this.errorMessage = `Erreur lors de la modification de l\'utilisateur: ${err.error?.message || 'Vérifiez les données.'}`;
         }
       }
     });
@@ -746,14 +803,14 @@ export class AdminDashboardComponent implements OnInit {
     this.http.delete(`${this.apiUrl}/api/users/${id}`, { headers }).subscribe({
       next: () => {
         this.users = this.users.filter(u => u.id !== id);
-        alert('Utilisateur supprimé avec succès.');
+        this.errorMessage = 'Utilisateur supprimé avec succès.';
       },
       error: (err) => {
         console.error('Erreur suppression utilisateur:', err);
         if (err.status === 401 || err.status === 403) {
-          this.handleAuthError();
+          this.handleAuthError(err.status);
         } else {
-          alert('Erreur lors de la suppression de l\'utilisateur: ' + (err.error?.message || 'Vérifiez les données saisies.'));
+          this.errorMessage = `Erreur lors de la suppression de l\'utilisateur: ${err.error?.message || 'Vérifiez les données.'}`;
         }
       }
     });
@@ -765,18 +822,18 @@ export class AdminDashboardComponent implements OnInit {
 
     this.http.post(`${this.apiUrl}/api/users/reset-password?email=${this.resetEmail}`, {}, { headers }).subscribe({
       next: () => {
-        alert('Un lien de réinitialisation a été envoyé à votre email.');
+        this.errorMessage = 'Un lien de réinitialisation a été envoyé à votre email.';
       },
       error: (err) => {
         console.error('Erreur demande réinitialisation:', err);
-        alert('Erreur lors de la demande de réinitialisation: ' + (err.error?.message || 'Vérifiez l\'email.'));
+        this.errorMessage = `Erreur lors de la demande de réinitialisation: ${err.error?.message || 'Vérifiez l\'email.'}`;
       }
     });
   }
 
   submitResetPassword(): void {
     if (!this.resetToken || !this.newPassword) {
-      alert('Veuillez entrer un nouveau mot de passe.');
+      this.errorMessage = 'Veuillez entrer un nouveau mot de passe.';
       return;
     }
     const headers = this.getAuthHeaders();
@@ -784,13 +841,13 @@ export class AdminDashboardComponent implements OnInit {
 
     this.http.post(`${this.apiUrl}/api/users/reset-password/${this.resetToken}?newPassword=${this.newPassword}`, {}, { headers }).subscribe({
       next: () => {
-        alert('Mot de passe réinitialisé avec succès.');
+        this.errorMessage = 'Mot de passe réinitialisé avec succès.';
         this.resetToken = null;
         this.newPassword = '';
       },
       error: (err) => {
         console.error('Erreur réinitialisation mot de passe:', err);
-        alert('Erreur lors de la réinitialisation: ' + (err.error?.message || 'Token invalide ou expiré.'));
+        this.errorMessage = `Erreur lors de la réinitialisation: ${err.error?.message || 'Token invalide ou expiré.'}`;
       }
     });
   }

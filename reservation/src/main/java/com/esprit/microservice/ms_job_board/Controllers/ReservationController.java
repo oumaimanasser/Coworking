@@ -57,21 +57,21 @@ public class ReservationController {
                         .body(Map.of("message", "Authentification requise"));
             }
 
-            String username = authentication.getName();
-            Optional<User> userOpt = userRepository.findByUsername(username);
+            // Utiliser l'email comme principal (sub du token), normalisé en minuscules
+            String email = authentication.getName().toLowerCase();
+            Optional<User> userOpt = userRepository.findByEmailIgnoreCase(email);
 
             if (userOpt.isEmpty()) {
-                logger.error("Utilisateur non trouvé: {}", username);
+                logger.error("Utilisateur non trouvé avec email: {}", email);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(Map.of("message", "Utilisateur non trouvé dans la base de données: " + username));
+                        .body(Map.of("message", "Utilisateur non trouvé dans la base de données: " + email));
             }
 
             User user = userOpt.get();
             reservationRequest.setClientName(user.getUsername());
-            reservationRequest.setClientEmail(user.getEmail());
+            reservationRequest.setClientEmail(user.getEmail().toLowerCase());
 
             Reservation reservation = reservationService.createReservation(reservationRequest);
-            // Optional: Send email on creation (pending status)
             sendPendingEmail(reservation, user);
             return ResponseEntity.status(HttpStatus.CREATED).body(reservation);
 
@@ -128,7 +128,7 @@ public class ReservationController {
                             <h3>📋 Détails de votre réservation :</h3>
                             <ul>
                                 <li><strong>🏢 Salle :</strong> %s (Capacité: %d personnes)</li>
-                                <li><strong>💰 Prix :</strong> %.2f €</li>
+                                <li><strong>💰 Prix :</strong> %.2f DT</li>
                                 <li><strong>📅 Date :</strong> %s</li>
                                 <li><strong>⏰ Horaire :</strong> %s - %s</li>
                                 <li><strong>👥 Nombre de personnes :</strong> %d</li>
@@ -208,15 +208,8 @@ public class ReservationController {
             }
 
             Optional<Reservation> reservationOpt = reservationService.getReservationById(id);
-            if (reservationOpt.isPresent()) {
-                String currentUsername = authentication.getName();
-                String reservationOwner = reservationOpt.get().getClientName();
-                if (!currentUsername.equals(reservationOwner)) {
-                    logger.warn("Tentative d'annulation par un non-propriétaire: {}", currentUsername);
-                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                            .body(Map.of("message", "Vous ne pouvez annuler que vos propres réservations"));
-                }
-            }
+               
+            
 
             reservationService.annuler(id);
             return ResponseEntity.ok(Map.of("message", "Réservation annulée avec succès"));
@@ -401,7 +394,7 @@ public class ReservationController {
                         <h3>📋 Détails de votre réservation :</h3>
                         <ul>
                             <li><strong>🏢 Salle :</strong> %s (Capacité: %d personnes)</li>
-                            <li><strong>💰 Prix :</strong> %.2f €</li>
+                            <li><strong>💰 Prix :</strong> %.2f DT</li>
                             <li><strong>📅 Date :</strong> %s</li>
                             <li><strong>⏰ Horaire :</strong> %s - %s</li>
                             <li><strong>👥 Nombre de personnes :</strong> %d</li>

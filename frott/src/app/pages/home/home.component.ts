@@ -1,6 +1,6 @@
 import { Component, OnInit, ElementRef, ViewChild, HostListener, OnDestroy } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { AuthService } from '../../services/auth.service';
 import { CommonModule } from '@angular/common';
@@ -12,8 +12,7 @@ import {
   transition, 
   animate, 
   query, 
-  stagger,
-  keyframes 
+  stagger 
 } from '@angular/animations';
 
 export interface Salle {
@@ -57,7 +56,6 @@ interface Particle {
         )
       ])
     ]),
-    
     trigger('slideInUp', [
       transition(':enter', [
         style({ opacity: 0, transform: 'translateY(50px)' }),
@@ -66,7 +64,6 @@ interface Particle {
         )
       ])
     ]),
-
     trigger('slideInLeft', [
       transition(':enter', [
         style({ opacity: 0, transform: 'translateX(-50px)' }),
@@ -75,7 +72,6 @@ interface Particle {
         )
       ])
     ]),
-
     trigger('slideInRight', [
       transition(':enter', [
         style({ opacity: 0, transform: 'translateX(50px)' }),
@@ -84,7 +80,6 @@ interface Particle {
         )
       ])
     ]),
-
     trigger('cardAnimation', [
       transition(':enter', [
         style({ 
@@ -99,7 +94,6 @@ interface Particle {
         )
       ])
     ]),
-
     trigger('staggerAnimation', [
       transition(':enter', [
         query('.space-card', [
@@ -120,13 +114,11 @@ export class HomeComponent implements OnInit, OnDestroy {
   @ViewChild('featuredSpaces') featuredSpaces!: ElementRef;
   @ViewChild('contactSection') contactSection!: ElementRef;
 
-  // Données
   salles: Salle[] = [];
   filteredSalles: Salle[] = [];
   isLoading: boolean = true;
   errorMessage: string = '';
   
-  // Formulaire de contact
   contactForm: ContactForm = {
     name: '',
     email: '',
@@ -134,18 +126,15 @@ export class HomeComponent implements OnInit, OnDestroy {
     message: ''
   };
 
-  // Newsletter
   newsletterEmail: string = '';
-
-  // États
   activeFilter: string = 'all';
   isSubmittingContact: boolean = false;
   contactSuccess: boolean = false;
   
-  // Particules pour l'animation
   particles: Particle[] = [];
   
   private apiUrl = 'http://localhost:9090';
+  private imageBaseUrl = 'http://localhost:9090/salles/images/';
   private scrollTimeout: any;
 
   constructor(
@@ -167,6 +156,21 @@ export class HomeComponent implements OnInit, OnDestroy {
     if (this.scrollTimeout) {
       clearTimeout(this.scrollTimeout);
     }
+  }
+
+  isLoggedIn(): boolean {
+    return this.authService.isAuthenticated();
+  }
+
+  getUserName(): string {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    return user.username || user.email || 'Utilisateur';
+  }
+
+  logout(): void {
+    this.authService.logout();
+    this.showSuccess('Déconnexion réussie !');
+    this.router.navigate(['/home']);
   }
 
   private generateParticles(): void {
@@ -246,14 +250,21 @@ export class HomeComponent implements OnInit, OnDestroy {
         if (invalidSalles.length) {
           console.warn('Invalid salle data received:', invalidSalles);
         }
+        
         this.salles = data
           .filter(salle => salle && salle.nom && salle.capacite && salle.prix)
-          .map(salle => ({
-            ...salle,
-            rating: salle.rating || this.generateRandomRating(),
-            amenities: salle.amenities || ['WiFi', 'Café', 'Projecteur'],
-            type: salle.type || 'default'
-          }));
+          .map(salle => {
+            const imagePath = salle.imagePath ? `${this.imageBaseUrl}${salle.imagePath}` : undefined;
+            console.log(`Salle ${salle.nom}: imagePath = ${salle.imagePath}, full URL = ${imagePath}`);
+            return {
+              ...salle,
+              imagePath: imagePath,
+              rating: salle.rating || this.generateRandomRating(),
+              amenities: salle.amenities || ['WiFi', 'Café', 'Projecteur'],
+              type: salle.type || 'default'
+            };
+          });
+        
         this.applyFilter();
         this.isLoading = false;
         
@@ -264,6 +275,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       error: (err) => {
         console.error('Erreur chargement salles:', err);
         this.handleLoadingError(err);
+        this.isLoading = false;
       }
     });
   }
@@ -310,7 +322,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         this.filteredSalles = this.salles;
         break;
     }
-    console.log('Filtered salles:', this.filteredSalles); // Debug
+    console.log('Filtered salles:', this.filteredSalles);
   }
 
   scrollToContact(): void {
@@ -365,17 +377,22 @@ export class HomeComponent implements OnInit, OnDestroy {
     console.log('Button animation triggered');
   }
 
-  getImageUrl(imagePath?: string, salleType?: string): SafeUrl {
-    if (!imagePath) {
-      return this.sanitizer.bypassSecurityTrustUrl(this.getDefaultImageUrl(salleType));
-    }
-    
-    if (imagePath.startsWith('http')) {
-      return this.sanitizer.bypassSecurityTrustUrl(imagePath);
-    }
-    
-    return this.sanitizer.bypassSecurityTrustUrl(`${this.apiUrl}/salles/images/${imagePath.split('/').pop()}`);
+ getImageUrl(imagePath?: string, salleType?: string): SafeUrl {
+  if (!imagePath || imagePath.trim() === '') {
+    return this.sanitizer.bypassSecurityTrustUrl(this.getDefaultImageUrl(salleType));
   }
+
+  // Check if imagePath is already a full URL
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    console.log(`Using full image URL: ${imagePath}`);
+    return this.sanitizer.bypassSecurityTrustUrl(imagePath);
+  }
+
+  // Otherwise, construct the URL using the apiUrl
+  const fullUrl = `${this.apiUrl}/salles/images/${imagePath}`;
+  console.log(`Image URL generated: ${fullUrl}`);
+  return this.sanitizer.bypassSecurityTrustUrl(fullUrl);
+}
 
   private getDefaultImageUrl(salleType?: string): string {
     const defaultImages: { [key: string]: string[] } = {
@@ -397,16 +414,18 @@ export class HomeComponent implements OnInit, OnDestroy {
         'https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=500&h=300&fit=crop',
       ],
     };
-
     const images = defaultImages[salleType || 'default'] || defaultImages['default'];
-    return images[Math.floor(Math.random() * images.length)];
+    const selectedImage = images[Math.floor(Math.random() * images.length)];
+    console.log(`Fallback image selected for type ${salleType || 'default'}: ${selectedImage}`);
+    return selectedImage;
   }
 
-  onImageError(event: Event, salleType?: string): void {
-    console.error('Image failed to load:', { event, salleType });
+  onImageError(event: Event, salleType?: string, salleNom?: string): void {
     const imgElement = event.target as HTMLImageElement;
-    imgElement.src = this.getDefaultImageUrl(salleType) as any; // Cast to avoid type mismatch
+    console.error(`Image failed to load for salle "${salleNom || 'Unknown'}": ${imgElement.src}`);
+    imgElement.src = this.getDefaultImageUrl(salleType);
     imgElement.classList.add('image-error');
+    console.log(`Switched to fallback image for salle "${salleNom || 'Unknown'}": ${imgElement.src}`);
   }
 
   getStatusClass(status?: string): string {
@@ -448,10 +467,13 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.isSubmittingContact = true;
     this.contactSuccess = false;
 
-    this.simulateContactSubmission().then(() => {
-      this.handleContactSuccess();
-    }).catch((error) => {
-      this.handleContactError(error);
+    this.http.post(`${this.apiUrl}/contact`, this.contactForm).subscribe({
+      next: () => {
+        this.handleContactSuccess();
+      },
+      error: (error) => {
+        this.handleContactError(error);
+      }
     });
   }
 
@@ -462,18 +484,6 @@ export class HomeComponent implements OnInit, OnDestroy {
       this.contactForm.subject.trim() &&
       this.contactForm.message.trim()
     );
-  }
-
-  private simulateContactSubmission(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (Math.random() > 0.1) {
-          resolve();
-        } else {
-          reject(new Error('Erreur de simulation'));
-        }
-      }, 2000);
-    });
   }
 
   private handleContactSuccess(): void {
@@ -518,6 +528,13 @@ export class HomeComponent implements OnInit, OnDestroy {
     }, 5000);
   }
 
+  private showSuccess(message: string): void {
+    this.errorMessage = message;
+    setTimeout(() => {
+      this.errorMessage = '';
+    }, 5000);
+  }
+
   onNewsletterSubmit(email: string): void {
     if (email && this.isValidEmail(email)) {
       console.log('Newsletter subscription:', email);
@@ -539,14 +556,6 @@ export class HomeComponent implements OnInit, OnDestroy {
   private isValidEmail(email: string): boolean {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
-  }
-
-  private showSuccess(message: string): void {
-    console.log('Success:', message);
-    this.errorMessage = message; // Using errorMessage for simplicity
-    setTimeout(() => {
-      this.errorMessage = '';
-    }, 5000);
   }
 
   onCardHover(salle: Salle): void {

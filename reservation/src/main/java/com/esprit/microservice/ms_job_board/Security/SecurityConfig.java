@@ -79,6 +79,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/paiements/confirmer/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.GET, "/paiements/en-attente").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.GET, "/paiements/payees").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers("/files/**").permitAll() // autoriser accès aux images
+                .requestMatchers("/uploads").permitAll() 
                         
                         .anyRequest().authenticated()
                 )

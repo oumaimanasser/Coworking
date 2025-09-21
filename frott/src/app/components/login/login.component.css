@@ -21,8 +21,9 @@
   background: rgba(255, 255, 255, 0.3);
   backdrop-filter: blur(20px);
   border-radius: 24px;
-  padding: 48px 40px;
+  padding: 40px 32px;
   width: 100%;
+  max-width: 380px;
   box-shadow:
     0 8px 32px rgba(31, 38, 135, 0.15),
     inset 0 1px 0 rgba(255, 255, 255, 0.4),
@@ -57,9 +58,9 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
-.user-icon svg {
-  width: 32px;
-  height: 32px;
+.user-icon-svg, .input-icon-svg, .password-toggle-svg, .social-btn-svg {
+  width: 24px;
+  height: 24px;
   color: #6b7280;
   opacity: 0.8;
 }
@@ -115,16 +116,10 @@
   transform: translateY(-1px);
 }
 
-/* États de validation Angular */
-.form-group input.ng-invalid.ng-touched {
+.form-group.error input {
   border-color: #ef4444;
   background: rgba(254, 242, 242, 0.8);
   animation: shake 0.5s ease-in-out;
-}
-
-.form-group input.ng-valid.ng-touched {
-  border-color: transparent;
-  background: rgba(240, 253, 244, 0.8);
 }
 
 @keyframes shake {
@@ -221,7 +216,7 @@ button[type="submit"] {
   letter-spacing: 0.025em;
 }
 
-button[极type="submit"]:hover:not(:disabled) {
+button[type="submit"]:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.6);
   transform: translateY(-2px);
   box-shadow:
@@ -238,91 +233,6 @@ button[type="submit"]:disabled {
   color: #9ca3af;
   cursor: not-allowed;
   transform: none;
-}
-
-.divider {
-  text-align: center;
-  margin: 32px 0;
-  position: relative;
-  color: #9ca3af;
-  font-size: 0.85rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.divider::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: rgba(156, 163, 175, 0.3);
-  z-index: 1;
-}
-
-.divider span {
-  background: rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(20px);
-  padding: 0 16px;
-  position: relative;
-  z-index: 2;
-}
-
-.social-buttons {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  margin-bottom: 32px;
-}
-
-.social-btn {
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
-  border: none;
-  background: rgba(255, 255, 255, 0.4);
-  backdrop-filter: blur(10px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  box-shadow:
-    0 2px 8px rgba(31, 38, 135, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
-}
-
-.social-btn:hover {
-  background: rgba(255, 255, 255, 0.6);
-  transform: translateY(-2px);
-  box-shadow:
-    0 8px 20px rgba(31, 38, 135, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
-}
-
-.social-btn svg {
-  width: 24px;
-  height: 24px;
-  color: #6b7280;
-}
-
-.switch {
-  text-align: center;
-  color: #6b7280;
-  font-size: 0.95rem;
-}
-
-.switch a {
-  color: #6366f1;
-  text-decoration: none;
-  font-weight: 600;
-  transition: color 0.2s ease;
-}
-
-.switch a:hover {
-  color: #4f46e5;
 }
 
 .message {
@@ -363,6 +273,23 @@ button[type="submit"]:disabled {
   }
 }
 
+.switch {
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+.switch a {
+  color: #6366f1;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.switch a:hover {
+  color: #4f46e5;
+}
+
 /* Responsive Design */
 @media (max-width: 480px) {
   :host {
@@ -382,86 +309,9 @@ button[type="submit"]:disabled {
     padding: 14px 18px 14px 46px;
   }
 
-  .social-buttons {
-    gap: 8px;
-  }
-
-  .social-btn {
-    width: 52px;
-    height: 52px;
-  }
-
   .form-options {
     flex-direction: column;
     gap: 12px;
     align-items: flex-start;
   }
-}
-
-/* Loading animation */
-.loading {
-  position: relative;
-  color: transparent !important;
-}
-
-.loading::after {
-  content: '';
-  position: absolute;
-  width: 20px;
-  height: 20px;
-  margin: auto;
-  border: 2px solid transparent;
-  border-top-color: #6b7280;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  right: 0;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* Focus visible pour l'accessibilité */
-button:focus-visible {
-  outline: 2px solid #6366f1;
-  outline-offset: 2px;
-}
-
-input:focus-visible {
-  outline: none;
-}
-
-/* Styles pour les icônes SVG dans le template Angular */
-.user-icon-svg {
-  width: 32px;
-  height: 32px;
-  color: #6b7280;
-  opacity: 0.8;
-}
-
-.input-icon-svg {
-  width: 18px;
-  height: 18px;
-  color: #9ca3af;
-}
-
-.password-toggle-svg {
-  width: 20px;
-  height: 20px;
-  color: #9ca3af;
-  transition: color 0.2s ease;
-}
-
-.password-toggle-svg:hover {
-  color: #6b7280;
-}
-
-.social-btn-svg {
-  width: 24px;
-  height: 24px;
-  color: #6b7280;
 }

@@ -44,18 +44,27 @@
         <label for="login-password">Mot de passe</label>
         <input id="login-password" type="password" formControlName="password" class="form-input" placeholder="Mot de passe" />
       </div>
+      <button type="submit" class="submit-btn" [disabled]="!loginForm.valid">Se connecter</button>
+    </form>
+    <div class="form-container">
+      <h3>Réinitialisation du mot de passe</h3>
       <div class="form-group">
         <label for="login-resetEmail">Email pour réinitialisation</label>
-        <input id="login-resetEmail" [(ngModel)]="resetEmail" class="form-input" placeholder="Entrez votre email" />
+        <input id="login-resetEmail" [(ngModel)]="resetEmail" [ngModelOptions]="{standalone: true}" class="form-input" placeholder="Entrez votre email" />
+      </div>
+      <div class="form-group">
+        <label for="login-resetToken">Token de réinitialisation</label>
+        <input id="login-resetToken" [(ngModel)]="resetToken" [ngModelOptions]="{standalone: true}" class="form-input" placeholder="Entrez le token reçu" />
       </div>
       <div class="form-group">
         <label for="login-newPassword">Nouveau mot de passe</label>
-        <input id="login-newPassword" [(ngModel)]="newPassword" type="password" class="form-input" placeholder="Nouveau mot de passe" />
+        <input id="login-newPassword" [(ngModel)]="newPassword" [ngModelOptions]="{standalone: true}" type="password" class="form-input" placeholder="Nouveau mot de passe" />
       </div>
-      <button type="button" (click)="resetPasswordRequest()">Demander réinitialisation</button>
-      <button type="button" (click)="submitResetPassword()" [disabled]="!resetToken || !newPassword">Réinitialiser mot de passe</button>
-      <button type="submit" class="submit-btn" [disabled]="!loginForm.valid">Se connecter</button>
-    </form>
+      <div class="action-buttons">
+        <button type="button" (click)="resetPasswordRequest()">Demander réinitialisation</button>
+        <button type="button" (click)="submitResetPassword()" [disabled]="!resetToken || !newPassword">Réinitialiser mot de passe</button>
+      </div>
+    </div>
   </div>
 
   <!-- ===== DASHBOARD PAGE ===== -->
@@ -89,39 +98,39 @@
     <div class="table-container">
       <table class="data-table">
         <thead>
-        <tr>
-          <th>Client</th>
-          <th>Salle</th>
-          <th>Créneau</th>
-          <th>Personnes</th>
-          <th>Date Réservation</th>
-          <th>Statut</th>
-          <th>Actions</th>
-        </tr>
+          <tr>
+            <th>Client</th>
+            <th>Salle</th>
+            <th>Créneau</th>
+            <th>Personnes</th>
+            <th>Date Réservation</th>
+            <th>Statut</th>
+            <th>Actions</th>
+          </tr>
         </thead>
         <tbody>
-        <tr *ngFor="let r of getRecentReservations()">
-          <td>{{ r.clientName }}</td>
-          <td>{{ r.salle?.nom || 'Indisponible' }}</td>
-          <td>{{ formatDate(r.creneau?.debut) }} - {{ formatDate(r.creneau?.fin) }}</td>
-          <td>{{ r.nombrePersonnes || 1 }}</td>
-          <td>{{ formatDate(r.dateReservation) }}</td>
-          <td>
+          <tr *ngFor="let r of getRecentReservations()">
+            <td>{{ r.clientName }}</td>
+            <td>{{ r.salle?.nom || 'Indisponible' }}</td>
+            <td>{{ formatDate(r.creneau?.debut) }} - {{ formatDate(r.creneau?.fin) }}</td>
+            <td>{{ r.nombrePersonnes || 1 }}</td>
+            <td>{{ formatDate(r.dateReservation) }}</td>
+            <td>
               <span class="status-badge" [ngClass]="getPaiementStatusClass(r.paiementStatus)">
                 {{ getPaiementStatusText(r.paiementStatus) }}
               </span>
-          </td>
-          <td>
-            <div class="action-buttons">
-              <button class="action-btn delete-btn" (click)="annulerReservation(r.id)">
-                <i class="fas fa-times"></i> Annuler
-              </button>
-            </div>
-          </td>
-        </tr>
-        <tr *ngIf="getRecentReservations().length === 0">
-          <td colspan="7" class="no-data">Aucune réservation récente</td>
-        </tr>
+            </td>
+            <td>
+              <div class="action-buttons">
+                <button class="action-btn delete-btn" (click)="annulerReservation(r.id)">
+                  <i class="fas fa-times"></i> Annuler
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="getRecentReservations().length === 0">
+            <td colspan="7" class="no-data">Aucune réservation récente</td>
+          </tr>
         </tbody>
       </table>
     </div>
@@ -135,39 +144,39 @@
     <div class="table-container">
       <table class="data-table">
         <thead>
-        <tr>
-          <th>Client</th>
-          <th>Salle</th>
-          <th>Créneau</th>
-          <th>Personnes</th>
-          <th>Date Réservation</th>
-          <th>Statut</th>
-          <th>Actions</th>
-        </tr>
+          <tr>
+            <th>Client</th>
+            <th>Salle</th>
+            <th>Créneau</th>
+            <th>Personnes</th>
+            <th>Date Réservation</th>
+            <th>Statut</th>
+            <th>Actions</th>
+          </tr>
         </thead>
         <tbody>
-        <tr *ngFor="let r of reservations">
-          <td>{{ r.clientName }}</td>
-          <td>{{ r.salle?.nom || 'Indisponible' }}</td>
-          <td>{{ formatDate(r.creneau?.debut) }} - {{ formatDate(r.creneau?.fin) }}</td>
-          <td>{{ r.nombrePersonnes || 1 }}</td>
-          <td>{{ formatDate(r.dateReservation) }}</td>
-          <td>
+          <tr *ngFor="let r of reservations">
+            <td>{{ r.clientName }}</td>
+            <td>{{ r.salle?.nom || 'Indisponible' }}</td>
+            <td>{{ formatDate(r.creneau?.debut) }} - {{ formatDate(r.creneau?.fin) }}</td>
+            <td>{{ r.nombrePersonnes || 1 }}</td>
+            <td>{{ formatDate(r.dateReservation) }}</td>
+            <td>
               <span class="status-badge" [ngClass]="getPaiementStatusClass(r.paiementStatus)">
                 {{ getPaiementStatusText(r.paiementStatus) }}
               </span>
-          </td>
-          <td>
-            <div class="action-buttons">
-              <button class="action-btn delete-btn" (click)="annulerReservation(r.id)">
-                <i class="fas fa-times"></i> Annuler
-              </button>
-            </div>
-          </td>
-        </tr>
-        <tr *ngIf="reservations.length === 0">
-          <td colspan="7" class="no-data">Aucune réservation</td>
-        </tr>
+            </td>
+            <td>
+              <div class="action-buttons">
+                <button class="action-btn delete-btn" (click)="annulerReservation(r.id)">
+                  <i class="fas fa-times"></i> Annuler
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="reservations.length === 0">
+            <td colspan="7" class="no-data">Aucune réservation</td>
+          </tr>
         </tbody>
       </table>
     </div>
@@ -281,7 +290,13 @@
     <div class="salles-list">
       <div class="salle-item" *ngFor="let s of salles">
         <div class="salle-info">
-          <img [src]="getImageUrl(s.imagePath)" (error)="onImageError($event)" alt="Salle Image" style="max-width: 100px; border-radius: 8px;" *ngIf="s.imagePath" />
+          <img 
+            [src]="getImageUrl(s.imagePath)"
+            (error)="onImageError($event)"
+            alt="Image de {{ s.nom }}"
+            style="max-width: 100px; border-radius: 8px;"
+            *ngIf="s.imagePath"
+          />
           <p><strong>Nom:</strong> {{ s.nom }}</p>
           <p><strong>Capacité:</strong> {{ s.capacite }} personnes</p>
           <p><strong>Prix:</strong> {{ s.prix | currency:'EUR' }}</p>
@@ -307,7 +322,7 @@
             <input id="salles-editCapacite" type="number" formControlName="capacite" class="form-input" min="1" />
           </div>
           <div class="form-group">
-            <label for="salles-editPrix">Prix (€)</label>
+            <label for="salles-editPrix">Prix </label>
             <input id="salles-editPrix" type="number" formControlName="prix" class="form-input" min="0" step="0.01" />
           </div>
           <div class="form-group">
@@ -336,85 +351,81 @@
     <div class="section-header">
       <h2><i class="fas fa-credit-card"></i> Gestion des Paiements</h2>
     </div>
-
-    <!-- Paiements en attente -->
     <div class="payment-section">
       <h3><i class="fas fa-clock"></i> Paiements en attente</h3>
       <div class="table-container">
         <table class="data-table">
           <thead>
-          <tr>
-            <th>Client</th>
-            <th>Salle</th>
-            <th>Créneau</th>
-            <th>Personnes</th>
-            <th>Date Réservation</th>
-            <th>Statut Paiement</th>
-            <th>Actions</th>
-          </tr>
+            <tr>
+              <th>Client</th>
+              <th>Salle</th>
+              <th>Créneau</th>
+              <th>Personnes</th>
+              <th>Date Réservation</th>
+              <th>Statut Paiement</th>
+              <th>Actions</th>
+            </tr>
           </thead>
           <tbody>
-          <tr *ngFor="let r of reservationsAvecPaiementEnAttente">
-            <td>{{ r.clientName }}</td>
-            <td>{{ r.salle?.nom || 'Indisponible' }}</td>
-            <td>{{ formatDate(r.creneau?.debut) }} - {{ formatDate(r.creneau?.fin) }}</td>
-            <td>{{ r.nombrePersonnes || 1 }}</td>
-            <td>{{ formatDate(r.dateReservation) }}</td>
-            <td>
+            <tr *ngFor="let r of reservationsAvecPaiementEnAttente">
+              <td>{{ r.clientName }}</td>
+              <td>{{ r.salle?.nom || 'Indisponible' }}</td>
+              <td>{{ formatDate(r.creneau?.debut) }} - {{ formatDate(r.creneau?.fin) }}</td>
+              <td>{{ r.nombrePersonnes || 1 }}</td>
+              <td>{{ formatDate(r.dateReservation) }}</td>
+              <td>
                 <span class="status-badge" [ngClass]="getPaiementStatusClass(r.paiementStatus)">
                   {{ getPaiementStatusText(r.paiementStatus) }}
                 </span>
-            </td>
-            <td>
-              <div class="action-buttons">
-                <button class="action-btn confirm-btn" (click)="confirmerPaiement(r.id)">
-                  <i class="fas fa-check"></i> Confirmer
-                </button>
-                <button class="action-btn delete-btn" (click)="annulerPaiement(r.id)">
-                  <i class="fas fa-times"></i> Annuler
-                </button>
-              </div>
-            </td>
-          </tr>
-          <tr *ngIf="reservationsAvecPaiementEnAttente.length === 0">
-            <td colspan="7" class="no-data">Aucun paiement en attente</td>
-          </tr>
+              </td>
+              <td>
+                <div class="action-buttons">
+                  <button class="action-btn confirm-btn" (click)="confirmerPaiement(r.id)">
+                    <i class="fas fa-check"></i> Confirmer
+                  </button>
+                  <button class="action-btn delete-btn" (click)="annulerPaiement(r.id)">
+                    <i class="fas fa-times"></i> Annuler
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr *ngIf="reservationsAvecPaiementEnAttente.length === 0">
+              <td colspan="7" class="no-data">Aucun paiement en attente</td>
+            </tr>
           </tbody>
         </table>
       </div>
     </div>
-
-    <!-- Paiements confirmés -->
     <div class="payment-section">
       <h3><i class="fas fa-check-circle"></i> Paiements confirmés</h3>
       <div class="table-container">
         <table class="data-table">
           <thead>
-          <tr>
-            <th>Client</th>
-            <th>Salle</th>
-            <th>Créneau</th>
-            <th>Personnes</th>
-            <th>Date Réservation</th>
-            <th>Statut Paiement</th>
-          </tr>
+            <tr>
+              <th>Client</th>
+              <th>Salle</th>
+              <th>Créneau</th>
+              <th>Personnes</th>
+              <th>Date Réservation</th>
+              <th>Statut Paiement</th>
+            </tr>
           </thead>
           <tbody>
-          <tr *ngFor="let r of reservationsPayees">
-            <td>{{ r.clientName }}</td>
-            <td>{{ r.salle?.nom || 'Indisponible' }}</td>
-            <td>{{ formatDate(r.creneau?.debut) }} - {{ formatDate(r.creneau?.fin) }}</td>
-            <td>{{ r.nombrePersonnes || 1 }}</td>
-            <td>{{ formatDate(r.dateReservation) }}</td>
-            <td>
+            <tr *ngFor="let r of reservationsPayees">
+              <td>{{ r.clientName }}</td>
+              <td>{{ r.salle?.nom || 'Indisponible' }}</td>
+              <td>{{ formatDate(r.creneau?.debut) }} - {{ formatDate(r.creneau?.fin) }}</td>
+              <td>{{ r.nombrePersonnes || 1 }}</td>
+              <td>{{ formatDate(r.dateReservation) }}</td>
+              <td>
                 <span class="status-badge" [ngClass]="getPaiementStatusClass(r.paiementStatus)">
                   {{ getPaiementStatusText(r.paiementStatus) }}
                 </span>
-            </td>
-          </tr>
-          <tr *ngIf="reservationsPayees.length === 0">
-            <td colspan="6" class="no-data">Aucun paiement confirmé</td>
-          </tr>
+              </td>
+            </tr>
+            <tr *ngIf="reservationsPayees.length === 0">
+              <td colspan="6" class="no-data">Aucun paiement confirmé</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -482,5 +493,10 @@
         </div>
       </form>
     </div>
+  </div>
+
+  <!-- Error Message -->
+  <div *ngIf="errorMessage" class="error-message">
+    {{ errorMessage }}
   </div>
 </div>

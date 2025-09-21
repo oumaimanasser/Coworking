@@ -64,4 +64,14 @@ public class UserService {
         }
         userRepository.deleteById(id);
     }
+
+    // Add this method to fix the first error
+    public Optional<User> findByEmailIgnoreCase(String email) {
+        return userRepository.findByEmailIgnoreCase(email);
+    }
+
+    // Add this method to fix the second error
+    public User save(User user) {
+        return userRepository.save(user);
+    }
 }

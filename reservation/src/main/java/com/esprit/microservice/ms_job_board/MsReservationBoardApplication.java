@@ -18,11 +18,9 @@ import java.util.Set;
 @EnableScheduling
 @SpringBootApplication(scanBasePackages = "com.esprit.microservice.ms_job_board")
 public class MsReservationBoardApplication {
-
 	public static void main(String[] args) {
 		SpringApplication.run(MsReservationBoardApplication.class, args);
 	}
-
 	// 🔹 Personnalisation du port de l'application
 	@Bean
 	public WebServerFactoryCustomizer<ConfigurableWebServerFactory> webServerFactoryCustomizer() {
